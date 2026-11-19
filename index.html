@@ -1,0 +1,304 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ore Heroes</title>
+<meta name="theme-color" content="#15120f">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Ore Heroes">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Inter:wght@400;500;600;700&display=swap">
+<style>
+/* Ore Heroes, Mine prototype. Same soot-and-ember look as Blacksmith Battles, its own game and its own save. */
+:root{
+  --bg:#15120f; --panel:#1f1a16; --panel2:#29221c; --line:#3b3029;
+  --fg:#f1e8dc; --muted:#a9998a; --ember:#ff8a3d; --ember-soft:rgba(255,138,61,.16);
+  --gold:#e9c45e; --good:#72d394; --ghost:#8affe0;
+  --display:"Cinzel",Georgia,serif; --body:"Inter",system-ui,-apple-system,"Segoe UI",sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{background:var(--bg);color:var(--fg);margin:0}
+body{font-family:var(--body);font-size:14px;line-height:1.45;padding:0 max(16px,env(safe-area-inset-right,0px)) calc(40px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+.wrap{max-width:640px;margin:0 auto;display:flex;flex-direction:column;gap:12px}
+.hud{position:sticky;top:0;z-index:5;background:var(--bg);padding-top:max(8px,env(safe-area-inset-top,0px));padding-bottom:8px;box-shadow:0 10px 14px -8px rgba(0,0,0,.6)}
+.res{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px}
+.chip{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:4px 8px;display:flex;flex-direction:column;align-items:center;line-height:1.15;font-variant-numeric:tabular-nums;font-weight:700;font-size:16px}
+.chip small{color:var(--muted);font-weight:600;font-size:10px;text-transform:uppercase;letter-spacing:.08em}
+.chip.ore b{color:var(--ember)}
+.scene{position:relative;border-radius:12px;overflow:hidden;border:1px solid var(--line);background:#0c0a09;aspect-ratio:480/210;touch-action:manipulation;user-select:none;-webkit-user-select:none;cursor:pointer}
+.scene canvas{position:absolute;inset:0;width:100%;height:100%;image-rendering:pixelated;image-rendering:crisp-edges}
+.taphint{position:absolute;left:50%;bottom:8px;transform:translateX(-50%);font:700 11px var(--display);letter-spacing:.12em;text-transform:uppercase;background:rgba(10,8,6,.6);border:1px solid rgba(255,255,255,.1);border-radius:6px;padding:3px 8px;pointer-events:none;transition:opacity .6s}
+h2{font-family:var(--display);font-size:17px;letter-spacing:.04em;margin:0}
+.row{display:flex;align-items:center;gap:8px;justify-content:space-between}
+.seg{display:flex;gap:4px}
+.b{background:var(--panel2);border:1px solid var(--line);color:var(--fg);font:600 13px var(--body);border-radius:9px;padding:8px 12px;cursor:pointer;min-height:40px}
+.b:disabled{opacity:.4;cursor:default}
+.b.on{border-color:var(--ember);background:var(--ember-soft)}
+.b.go{background:var(--ember);border-color:var(--ember);color:#1a120c}
+.b.go:disabled{background:var(--panel2);border-color:var(--line);color:var(--fg)}
+.b.sm{min-height:34px;padding:5px 10px;font-size:12px}
+.cards{display:flex;flex-direction:column;gap:8px}
+.card{display:grid;grid-template-columns:44px 1fr auto;gap:10px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:8px 10px}
+.card .pic{width:44px;height:56px;border-radius:8px;background:#0c0a09;display:grid;place-items:center;overflow:hidden}
+.card .pic canvas{image-rendering:pixelated;width:44px;height:56px}
+.card b{font-family:var(--display);font-size:15px;letter-spacing:.03em}
+.card .lv{color:var(--ember);font-weight:700;margin-left:4px;font-variant-numeric:tabular-nums}
+.card .what{color:var(--fg);font-size:13px}
+.card .next{color:var(--muted);font-size:12px}
+.card .buy{display:flex;flex-direction:column;align-items:stretch;min-width:96px}
+.card .buy .b{font-variant-numeric:tabular-nums}
+.card.locked{opacity:.6;grid-template-columns:44px 1fr}
+.card.fresh{border-color:var(--ember);box-shadow:0 0 0 1px var(--ember) inset}
+.note{color:var(--muted);font-size:12px;margin:0}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%) translateY(20px);background:var(--panel2);border:1px solid var(--ember);border-radius:10px;padding:9px 14px;opacity:0;transition:.3s;pointer-events:none;z-index:20;max-width:calc(100vw - 32px);text-align:center}
+.toast.show{opacity:1;transform:translateX(-50%)}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:8px}
+.panel .row{flex-wrap:wrap;justify-content:flex-start}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hud">
+    <div class="res">
+      <div class="chip ore"><small>Ore</small><b id="ore">0</b></div>
+      <div class="chip"><small>Ore per second</small><b id="ops">0</b></div>
+    </div>
+    <div class="scene" id="scene"><canvas id="cv" width="480" height="210"></canvas><div class="taphint" id="taphint">Tap the rock</div></div>
+  </div>
+  <div class="row"><h2>Mine heroes</h2><div class="seg" id="amt"><button class="b sm on" data-n="1">×1</button><button class="b sm" data-n="10">×10</button><button class="b sm" data-n="max">Max</button></div></div>
+  <div class="cards" id="cards"></div>
+  <section class="panel">
+    <div class="row" style="justify-content:space-between"><h2>Save</h2><span class="note" id="backup"></span></div>
+    <p class="note">This game keeps its own save, separate from Blacksmith Battles.</p>
+    <div class="row"><button class="b" id="savefile">Save to file</button><button class="b" id="loadfile">Load from file</button><input type="file" id="loadinput" accept=".json,application/json" hidden><button class="b" id="reset">Start over</button></div>
+  </section>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+'use strict';
+const $=s=>document.querySelector(s);
+const fmtN=n=>{if(n<10000)return n<100&&n%1?String(Math.round(n*10)/10):String(Math.round(n));const u=['k','M','B','T','Qa','Qi','Sx','Sp','Oc','No','Dc'];let i=-1;while(n>=1000&&i<u.length-1){n/=1000;i++}return (n>=100?Math.round(n):n>=10?Math.round(n*10)/10:Math.round(n*100)/100)+u[i]};
+const KEY='ore-heroes-v1';
+
+/* ---------- the mine heroes ----------
+   One named hero per job, each working their own spot in the mine. Levels cost ore (base x 1.15^level).
+   Milestone levels (10, 25, 50, 100, then every 50) double that hero's output and upgrade their tool. */
+const MS=[10,25,50,100];
+const msCount=lv=>MS.filter(m=>lv>=m).length+(lv>=150?Math.floor((lv-100)/50):0);
+const nextMs=lv=>{for(const m of MS)if(lv<m)return m;return 100+50*(Math.floor((lv-100)/50)+1)};
+const TOOLS=['Copper','Iron','Steel','Moonsilver','Starmetal'];
+const HEROES=[
+  {k:'miner',n:'Miner',base:10,col:null,
+    what:()=>`You. +${fmtN(minerTap())} ore every time you tap`,
+    ms:lv=>`Level ${nextMs(lv)}: ${TOOLS[Math.min(4,msCount(lv)+1)]} pick, double ore per tap`},
+  {k:'carter',n:'Carter',base:60,col:'#b0703a',
+    what:()=>`Rides the cart into the tunnel and back: ${fmtN(carterRate()*TRIP)} ore a trip`,
+    ms:lv=>`Level ${nextMs(lv)}: ${['greased wheels','a bigger cart','a second cart','iron rails'][Math.min(3,msCount(lv))]}, double loads`,
+    req:()=>lv('miner')>=5&&S.taps>=25, hint:'The Miner is getting the hang of it. Keep tapping and level the Miner.'},
+  {k:'phantom',n:'Phantom Pick',base:600,col:'ghost',
+    what:()=>`A ghostly pickaxe that strikes on its own: ${fmtN(phantomRate())} ore/s`,
+    ms:lv=>`Level ${nextMs(lv)}: ${['a brighter glow','a second spectral edge','twin picks','a storm of picks'][Math.min(3,msCount(lv))]}, double strikes`,
+    req:()=>lv('carter')>=5&&lv('miner')>=10, hint:'Something stirs in the dark. Level the Carter and the Miner.'},
+  {k:'prospector',n:'Prospector',base:4000,col:'#4f7fc0',
+    what:()=>`Swings beside you every time you tap: +${fmtN(prospTap())} ore a tap`,
+    ms:lv=>`Level ${nextMs(lv)}: ${TOOLS[Math.min(4,msCount(lv)+1)]} pick, double ore`,
+    req:()=>lv('phantom')>=5&&S.taps>=400, hint:'Someone is watching how you swing. Keep tapping, and level the Phantom Pick.'},
+  {k:'blaster',n:'Blaster',base:30000,col:'#c04a3a',
+    what:()=>`Lights a fuse every ${BLAST}s: ${fmtN(blasterRate()*BLAST)} ore a blast`,
+    ms:lv=>`Level ${nextMs(lv)}: ${['longer fuses','bigger charges','blasting jelly','thunder powder'][Math.min(3,msCount(lv))]}, double blasts`,
+    req:()=>lv('prospector')>=5&&S.mined>=50000, hint:'Big rocks need a bigger answer. Mine a lot more ore.'},
+  {k:'lamp',n:'Lamplighter',base:250000,col:'#d8b040',
+    what:()=>`+${Math.round((lampBoost()-1)*100)}% all mine ore. Keeps the mine working ${nightText()}`,
+    ms:lv=>lv<12?`Next level: lanterns burn 1 more hour while you're away`:`Next level: +1% of ore kept while away`,
+    req:()=>lv('blaster')>=5&&S.blasts>=10, hint:'The lanterns gutter out whenever you leave. Keep blasting.'}
+];
+const HK=Object.fromEntries(HEROES.map(h=>[h.k,h]));
+const TRIP=6,PHANTOM_EVERY=1.2,BLAST=20;
+let S;
+const lv=k=>S.h[k]||0;
+const mult=k=>Math.pow(2,msCount(lv(k)));
+const lampBoost=()=>1+0.02*lv('lamp')*mult('lamp');
+const minerTap=()=>lv('miner')*mult('miner')*lampBoost();
+const prospTap=()=>minerTap()*0.25*lv('prospector')*mult('prospector');
+const tapOre=()=>minerTap()+prospTap();
+const carterRate=()=>0.6*lv('carter')*mult('carter')*lampBoost();
+const phantomRate=()=>0.4*lv('phantom')*mult('phantom')*minerTap();
+const blasterRate=()=>60*lv('blaster')*mult('blaster')*lampBoost();
+const autoRate=()=>carterRate()+phantomRate()+blasterRate();
+const nightHours=()=>Math.min(12,lv('lamp'));
+const nightPct=()=>Math.min(100,10+Math.max(0,lv('lamp')-12));
+const nightText=()=>lv('lamp')?`for ${nightHours()} h at ${nightPct()}% while you're away`:'while you are away';
+const costAt=(k,l)=>Math.ceil(HK[k].base*Math.pow(1.15,l));
+function costN(k,n){let c=0,l=lv(k);for(let i=0;i<n;i++)c+=costAt(k,l+i);return c}
+function maxN(k){let c=0,l=lv(k),n=0;while(n<1000){const x=costAt(k,l+n);if(c+x>S.ore)break;c+=x;n++}return n}
+
+function fresh(){return{ore:0,mined:0,taps:0,blasts:0,h:{miner:1},seen:{miner:1},t:Date.now(),lastBackup:0}}
+function save(){S.t=Date.now();try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
+function load(){let d=null;try{d=JSON.parse(localStorage.getItem(KEY)||'null')}catch(e){}S=Object.assign(fresh(),d||{});S.h=Object.assign({miner:1},S.h)}
+
+/* ---------- earning ---------- */
+const pops=[],parts=[];
+function gain(n,x,y,col){if(n<=0)return;S.ore+=n;S.mined+=n;pops.push({x,y,txt:'+'+fmtN(n),t:0,col:col||'#ffd08a'})}
+function burst(x,y,n,cols,sp=1){for(let i=0;i<n;i++)parts.push({x,y,vx:(Math.random()-.5)*90*sp,vy:-Math.random()*80*sp-10,life:.5+Math.random()*.4,c:cols[i%cols.length]})}
+const CHIPS=['#d88038','#f0b070','#9a4a22','#584738'];
+
+let hintGone=false;
+function tap(){
+  S.taps++;
+  if(!hintGone&&S.taps>=3){hintGone=true;$('#taphint').style.opacity=0}
+  F.miner.swing();
+  if(lv('prospector'))F.pros.swing();
+}
+function minerLanded(){gain(minerTap(),SPOT.miner.x,SPOT.miner.y-14);burst(SPOT.miner.x,SPOT.miner.y,8,CHIPS)}
+function prospLanded(){gain(prospTap(),SPOT.pros.x,SPOT.pros.y-12,'#bcd4ff');burst(SPOT.pros.x,SPOT.pros.y,6,CHIPS,.7)}
+
+// automatic heroes run on their own clocks so the ore arrives in visible trips, strikes and blasts
+const acc={carter:0,phantom:0,blaster:0};
+function logic(dt){
+  if(lv('carter')){acc.carter+=dt;if(acc.carter>=TRIP){acc.carter-=TRIP;gain(carterRate()*TRIP,SPOT.cartDump.x,SPOT.cartDump.y-12)}}
+  if(lv('phantom')){acc.phantom+=dt;if(acc.phantom>=PHANTOM_EVERY){acc.phantom-=PHANTOM_EVERY;F.ghost.strike=0}}
+  if(lv('blaster')){acc.blaster+=dt;if(acc.blaster>=BLAST){acc.blaster-=BLAST;F.blast.boom=0;S.blasts++;gain(blasterRate()*BLAST,SPOT.blast.x,SPOT.blast.y-22,'#ffb070');burst(SPOT.blast.x,SPOT.blast.y,26,['#ffe08a','#ff8a3d','#9a4a22','#584738','#fff4c0'],2.2);shake=.35}}
+}
+// Night shift: nothing while closed, until the Lamplighter. Each level is 1 more hour (up to 12) at 10%, then +1% per level.
+function awayGrant(sec){if(sec<30||!lv('lamp'))return;const t=Math.min(sec,nightHours()*3600),g=t*autoRate()*nightPct()/100;
+  if(g>0){S.ore+=g;S.mined+=g;setTimeout(()=>toast(`The Lamplighter kept the mine going: ${fmtN(g)} ore while you were away`),400)}}
+
+/* ---------- the scene ---------- */
+const cv=$('#cv'),ctx=cv.getContext('2d');ctx.imageSmoothingEnabled=false;
+const SPOT={
+  miner:{x:268,y:126},             // the big boulder
+  cartTop:{x:186,y:84},cartBot:{x:150,y:176},cartDump:{x:132,y:170},
+  ghost:{x:292,y:80},              // ore in the rocks under the right arch
+  pros:{x:104,y:106},prosFig:{x:50,y:56},
+  blast:{x:420,y:132},blastFig:{x:448,y:96},
+  lampFig:{x:372,y:98}
+};
+const LANTERNS=[{x:97,y:48},{x:193,y:50},{x:309,y:46},{x:357,y:62}];
+let atlas=null,img=null;const TINT={};
+function frameSet(){const f={};for(const k of Object.keys(atlas.sprites))if(k!=='bg')f[k]=atlas.sprites[k];return f}
+function tinted(col){if(TINT[col])return TINT[col];const out={};for(const[k,s]of Object.entries(frameSet())){const c=document.createElement('canvas');c.width=s[2];c.height=s[3];const x=c.getContext('2d');x.drawImage(img,s[0],s[1],s[2],s[3],0,0,s[2],s[3]);x.globalCompositeOperation='source-atop';x.fillStyle=col;x.globalAlpha=.45;x.fillRect(0,0,c.width,c.height);out[k]={c,dx:s[4],dy:s[5]}}return TINT[col]=out}
+// a swinging figure: idle loop, then strike + recover on a tap (timings from the Blacksmith Battles mine scene)
+const DUR={idle:1,strike:.12,recover:.38};
+class Fig{
+  constructor(onLand){this.seg='idle';this.t=0;this.onLand=onLand}
+  swing(){if(this.seg==='strike')this.onLand();this.seg='strike';this.t=0}
+  step(dt){this.t+=dt;if(this.t>=DUR[this.seg]){if(this.seg==='idle')this.t%=1;else if(this.seg==='strike'){this.onLand();this.seg='recover';this.t=0}else{this.seg='idle';this.t=0}}}
+  frame(){const n=atlas.seg[this.seg].t.length;return this.seg+'-'+Math.min(n-1,Math.floor(this.t/DUR[this.seg]*n))}
+}
+const F={miner:new Fig(minerLanded),pros:new Fig(prospLanded),ghost:{strike:9},blast:{boom:9},cart:{}};
+let shake=0,clock=0;
+function drawFig(set,name,x,y,s,flip){const f=set[name];if(!f)return;ctx.save();ctx.translate(x,y);if(flip){ctx.scale(-1,1)}ctx.drawImage(f.c,0,0,f.c.width,f.c.height,Math.round(-f.c.width*s/2),Math.round(-f.c.height*s),Math.round(f.c.width*s),Math.round(f.c.height*s));ctx.restore()}
+function blob(x,y,r,c){ctx.fillStyle=c;ctx.fillRect(Math.round(x-r),Math.round(y-r*.7),Math.round(r*2),Math.round(r*1.4));ctx.fillRect(Math.round(x-r*.7),Math.round(y-r),Math.round(r*1.4),Math.round(r*2))}
+function oreBits(x,y,on,seed){const R=[[0,0,4],[-7,3,3],[6,2,3],[-2,-6,2.5],[5,-4,2]];for(const[dx,dy,r]of R)blob(x+dx,y+dy,r,on?(seed++%2?'#ff9a4a':'#e07a34'):'#3a302a')}
+// a spot waiting for its hero: dark rock with a faint marker; the next one to arrive pulses
+function waitingSpot(x,y,next){oreBits(x,y,false,0);const a=next?.75+.25*Math.sin(clock*3):.5;ctx.save();ctx.globalAlpha=a;
+  ctx.fillStyle='#120e0b';ctx.fillRect(x-7,y-25,14,13);ctx.fillStyle=next?'#8a5a34':'#4a3a2e';ctx.fillRect(x-6,y-24,12,11);ctx.fillStyle='#3a2e24';ctx.fillRect(x-1,y-13,2,8);
+  ctx.fillStyle=next?'#ffd08a':'#c8b8a4';ctx.font='bold 10px Inter,sans-serif';ctx.textAlign='center';ctx.fillText('?',x,y-15);ctx.restore()}
+function nextHero(){return HEROES.find(h=>!lv(h.k))}
+function draw(dt){
+  ctx.save();if(shake>0){ctx.translate((Math.random()-.5)*6*shake,(Math.random()-.5)*6*shake);shake=Math.max(0,shake-dt)}
+  const bg=atlas.sprites.bg;ctx.drawImage(img,bg[0],bg[1],bg[2],bg[3],-3,-3,486,216);
+  // Lamplighter: the lanterns burn brighter with his levels
+  const L=lv('lamp');for(const g of LANTERNS){const a=.1+Math.min(.25,.03*L)+.03*Math.sin(clock*2+g.x),r=22+Math.min(14,L*.6);const gr=ctx.createRadialGradient(g.x,g.y,0,g.x,g.y,r);gr.addColorStop(0,`rgba(255,190,90,${a})`);gr.addColorStop(1,'rgba(255,190,90,0)');ctx.fillStyle=gr;ctx.fillRect(g.x-r,g.y-r,r*2,r*2)}
+  const nx=nextHero(),isNext=k=>nx&&nx.k===k&&S.seen[k];
+  // Phantom Pick spot
+  if(lv('phantom'))oreBits(SPOT.ghost.x,SPOT.ghost.y,true,1);else waitingSpot(SPOT.ghost.x,SPOT.ghost.y,isNext('phantom'));
+  // Prospector spot
+  if(lv('prospector')){oreBits(SPOT.pros.x,SPOT.pros.y,true,2);drawFig(tinted('#4f7fc0'),F.pros.frame(),SPOT.prosFig.x+17,SPOT.prosFig.y+60,.7)}else waitingSpot(SPOT.pros.x,SPOT.pros.y,isNext('prospector'));
+  // Blaster spot
+  if(lv('blaster')){oreBits(SPOT.blast.x,SPOT.blast.y,true,3);drawFig(tinted('#c04a3a'),'idle-'+(Math.floor(clock*12)%12),SPOT.blastFig.x,SPOT.blastFig.y+54,.62,true);
+    const p=acc.blaster/BLAST,fx=SPOT.blastFig.x-14+(SPOT.blast.x+6-(SPOT.blastFig.x-14))*p,fy=SPOT.blastFig.y+50+(SPOT.blast.y-(SPOT.blastFig.y+50))*p;
+    ctx.strokeStyle='#5a4636';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(fx,fy);ctx.lineTo(SPOT.blast.x+6,SPOT.blast.y);ctx.stroke();
+    ctx.fillStyle=Math.random()<.5?'#ffe08a':'#ff8a3d';ctx.fillRect(Math.round(fx)-1,Math.round(fy)-1,3,3);
+    if(F.blast.boom<.35){const k=F.blast.boom/.35,r=8+40*k;const gr=ctx.createRadialGradient(SPOT.blast.x,SPOT.blast.y,0,SPOT.blast.x,SPOT.blast.y,r);gr.addColorStop(0,`rgba(255,240,190,${1-k})`);gr.addColorStop(1,'rgba(255,140,60,0)');ctx.fillStyle=gr;ctx.fillRect(SPOT.blast.x-r,SPOT.blast.y-r,r*2,r*2)}
+    F.blast.boom+=dt}else waitingSpot(SPOT.blast.x,SPOT.blast.y,isNext('blaster'));
+  // Lamplighter figure by the lantern post
+  if(L)drawFig(tinted('#d8b040'),'idle-'+(Math.floor(clock*10)%12),SPOT.lampFig.x,SPOT.lampFig.y+50,.55,true);
+  else waitingSpot(SPOT.lampFig.x,SPOT.lampFig.y+48,isNext('lamp'));
+  // Carter: the cart rolls up the rails into the tunnel, comes back loaded and tips out at the bottom
+  if(lv('carter'))oreBits(SPOT.cartDump.x,SPOT.cartDump.y,true,4);
+  if(lv('carter')){const p=acc.carter/TRIP;let u;if(p<.4)u=p/.4;else if(p<.55)u=1;else u=1-(p-.55)/.45; // 0 = bottom, 1 = in the tunnel
+    const x=SPOT.cartBot.x+(SPOT.cartTop.x-SPOT.cartBot.x)*u,y=SPOT.cartBot.y+(SPOT.cartTop.y-SPOT.cartBot.y)*u,s=1.1-.6*u,full=p>=.5||p<.04,vis=u>.92?1-(u-.92)/.08:1;
+    ctx.save();ctx.globalAlpha=vis;
+    drawFig(tinted('#b0703a'),'idle-'+(Math.floor(clock*12)%12),x-14*s,y+4*s,.5*s);
+    const w=Math.round(28*s),h=Math.round(14*s),cx=Math.round(x-w/2+6*s),cy=Math.round(y-h);
+    ctx.fillStyle='#120e0b';ctx.fillRect(cx-1,cy-1,w+2,h+2);ctx.fillStyle='#7a5434';ctx.fillRect(cx,cy,w,h);ctx.fillStyle='#9c7048';ctx.fillRect(cx,cy,w,Math.max(1,Math.round(3*s)));
+    ctx.fillStyle='#5c534c';ctx.fillRect(cx,cy+Math.round(h*.55),w,Math.max(1,Math.round(2*s)));
+    if(full)oreBitsScaled(cx+w/2,cy,s*1.2);ctx.fillStyle='#1a1614';const wr=Math.max(2,Math.round(5*s));ctx.fillRect(cx+Math.round(3*s),cy+h,wr,wr);ctx.fillRect(cx+w-Math.round(3*s)-wr,cy+h,wr,wr);
+    ctx.restore()}
+  else waitingSpot(SPOT.cartDump.x,SPOT.cartDump.y,isNext('carter'));
+  // you, the Miner, at the boulder
+  const mf=atlas.sprites[F.miner.frame()];ctx.drawImage(img,mf[0],mf[1],mf[2],mf[3],mf[4],mf[5],mf[2],mf[3]);
+  // the Phantom Pick: a ghostly pickaxe hovering over its ore, diving in on each strike
+  if(lv('phantom')){const st=F.ghost.strike;F.ghost.strike+=dt;const a=st<.12?-1.1+2.2*(st/.12):st<.5?1.1-1.6*((st-.12)/.38):-.5-.6*Math.min(1,(st-.5)/.7);
+    if(st>=.12&&st-dt<.12){gain(phantomRate()*PHANTOM_EVERY,SPOT.ghost.x,SPOT.ghost.y-16,'#b8fff0');burst(SPOT.ghost.x,SPOT.ghost.y,6,['#8affe0','#d88038','#f0b070'],.7)}
+    ctx.save();ctx.translate(SPOT.ghost.x+16,SPOT.ghost.y-18+2*Math.sin(clock*2));ctx.rotate(a);ctx.globalAlpha=.55+.2*Math.sin(clock*4);ctx.shadowColor='#8affe0';ctx.shadowBlur=8;
+    ctx.fillStyle='#bff8ec';ctx.fillRect(-1,-2,3,22);ctx.fillStyle='#8affe0';ctx.beginPath();ctx.moveTo(-12,-2);ctx.quadraticCurveTo(0,-9,12,-2);ctx.lineTo(10,0);ctx.quadraticCurveTo(0,-5,-10,0);ctx.closePath();ctx.fill();ctx.restore()}
+  // chips and ore popups
+  for(let i=parts.length-1;i>=0;i--){const p=parts[i];p.life-=dt;if(p.life<=0){parts.splice(i,1);continue}p.vy+=220*dt;p.x+=p.vx*dt;p.y+=p.vy*dt;ctx.fillStyle=p.c;ctx.fillRect(Math.round(p.x),Math.round(p.y),2,2)}
+  ctx.font='bold 11px Inter,sans-serif';ctx.textAlign='center';
+  for(let i=pops.length-1;i>=0;i--){const p=pops[i];p.t+=dt;if(p.t>1.1){pops.splice(i,1);continue}ctx.globalAlpha=Math.min(1,2.2-p.t*2);ctx.fillStyle='#120e0b';ctx.fillText(p.txt,p.x+1,p.y-p.t*18+1);ctx.fillStyle=p.col;ctx.fillText(p.txt,p.x,p.y-p.t*18)}
+  ctx.globalAlpha=1;ctx.restore();
+}
+function oreBitsScaled(x,y,s){const R=[[-6,0,3],[0,-2,3.5],[6,0,3],[-2,-4,2]];let i=0;for(const[dx,dy,r]of R)blob(x+dx*s,y+dy*s,Math.max(1,r*s),i++%2?'#ff9a4a':'#e07a34')}
+
+/* ---------- hero cards ---------- */
+let amt='1';
+function portrait(h){const c=document.createElement('canvas');c.width=40;c.height=88;const x=c.getContext('2d');x.imageSmoothingEnabled=false;
+  if(h.k==='phantom'){x.translate(20,46);x.rotate(.5);x.fillStyle='#bff8ec';x.fillRect(-2,-6,4,34);x.fillStyle='#8affe0';x.beginPath();x.moveTo(-18,-6);x.quadraticCurveTo(0,-18,18,-6);x.lineTo(15,-2);x.quadraticCurveTo(0,-11,-15,-2);x.closePath();x.fill();return c}
+  const set=h.col?tinted(h.col):null,s=atlas.sprites['idle-0'];if(set){const f=set['idle-0'];x.drawImage(f.c,3,1)}else x.drawImage(img,s[0],s[1],s[2],s[3],3,1,s[2],s[3]);return c}
+function buildCards(){const box=$('#cards');box.innerHTML='';for(const h of HEROES){const el=document.createElement('div');el.className='card';el.dataset.k=h.k;
+  el.innerHTML=`<div class="pic"></div><div><div><b>${h.n}</b><span class="lv"></span></div><div class="what"></div><div class="next"></div></div><div class="buy"><button class="b go" data-buy="${h.k}"></button></div>`;
+  el.querySelector('.pic').appendChild(portrait(h));box.appendChild(el)}refreshCards()}
+function revealCheck(){for(const h of HEROES){if(S.seen[h.k])continue;if(h.req&&h.req()){S.seen[h.k]=1;toast(`Someone new came to the mine: the ${h.n}`);save();refreshCards()}break}}
+function refreshCards(){let shownLocked=false;
+  for(const h of HEROES){const el=document.querySelector(`.card[data-k="${h.k}"]`),L=lv(h.k),seen=S.seen[h.k];
+    if(!seen){if(shownLocked){el.style.display='none';continue}shownLocked=true;el.style.display='';el.className='card locked';el.querySelector('b').textContent='???';el.querySelector('.lv').textContent='';el.querySelector('.what').textContent=h.hint;el.querySelector('.next').textContent='';el.querySelector('.buy').style.display='none';el.querySelector('.pic').style.visibility='hidden';continue}
+    el.style.display='';el.querySelector('.pic').style.visibility='';el.querySelector('.buy').style.display='';el.querySelector('b').textContent=h.n;
+    el.className='card'+(L?'':' fresh');
+    el.querySelector('.lv').textContent=L?`Lv ${L}`:'';
+    el.querySelector('.what').textContent=L?h.what():`Waiting at the mine mouth. Hire them to open their spot.`;
+    el.querySelector('.next').textContent=L?h.ms(L):'';
+    const n=amt==='max'?Math.max(1,maxN(h.k)):+amt,c=costN(h.k,n),b=el.querySelector('button');
+    b.textContent=L?`Level up${n>1?' ×'+n:''} · ${fmtN(c)}`:`Hire · ${fmtN(c)}`;b.disabled=S.ore<c}}
+function buy(k){const L=lv(k),n=L?(amt==='max'?Math.max(1,maxN(k)):+amt):1,c=costN(k,n);if(S.ore<c)return;S.ore-=c;const before=msCount(L);S.h[k]=L+n;
+  if(!L)toast(`The ${HK[k].n} got to work`);else if(msCount(L+n)>before)toast(`${HK[k].n} reached level ${S.h[k]}: double output!`);save();refreshCards()}
+
+/* ---------- ui ---------- */
+let toastT=0;function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),2600)}
+$('#scene').addEventListener('pointerdown',e=>{e.preventDefault();tap()});
+$('#cards').addEventListener('click',e=>{const b=e.target.closest('[data-buy]');if(b)buy(b.dataset.buy)});
+$('#amt').addEventListener('click',e=>{const b=e.target.closest('[data-n]');if(!b)return;amt=b.dataset.n;for(const x of $('#amt').children)x.classList.toggle('on',x===b);refreshCards()});
+let resetArm=false;
+$('#reset').onclick=()=>{if(!resetArm){resetArm=true;$('#reset').textContent='Tap again to erase this save';setTimeout(()=>{resetArm=false;$('#reset').textContent='Start over'},3000);return}S=fresh();save();buildCards();toast('A fresh mine')};
+$('#savefile').onclick=async()=>{S.lastBackup=Date.now();save();const d=new Date(),name=`ore-heroes-save-${d.toISOString().slice(0,10)}.json`,blob=new Blob([JSON.stringify({game:'ore-heroes',v:1,saved:d.toISOString(),S})],{type:'application/json'}),file=new File([blob],name,{type:'application/json'});
+  try{if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],title:'Ore Heroes save'});return}}catch(e){if(e&&e.name==='AbortError')return}
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000)};
+$('#loadfile').onclick=()=>$('#loadinput').click();
+$('#loadinput').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const j=JSON.parse(r.result);if(!j||j.game!=='ore-heroes'||!j.S)throw 0;S=Object.assign(fresh(),j.S);save();buildCards();toast('Save loaded')}catch(err){toast("That file isn't an Ore Heroes save")}};r.readAsText(f);e.target.value=''};
+
+let last=0,lastSave=0,lastUi=0,hiddenAt=0;
+function frame(now){const dt=last?Math.min(.1,(now-last)/1000):0;last=now;clock+=dt;
+  F.miner.step(dt);F.pros.step(dt);logic(dt);draw(dt);
+  if(now-lastUi>200){lastUi=now;$('#ore').textContent=fmtN(S.ore);$('#ops').textContent=fmtN(autoRate());revealCheck();refreshCards();$('#backup').textContent=S.lastBackup?`Last backup ${new Date(S.lastBackup).toLocaleDateString()}`:'Never backed up'}
+  if(now-lastSave>5000){lastSave=now;save()}
+  requestAnimationFrame(frame)}
+// closing or hiding the page counts as away time: only the Lamplighter earns while you're gone
+document.addEventListener('visibilitychange',()=>{if(document.hidden){hiddenAt=Date.now();save()}else if(hiddenAt){awayGrant((Date.now()-hiddenAt)/1000);hiddenAt=0;last=0}});
+window.addEventListener('pagehide',save);
+
+load();
+Promise.all([fetch('art/mine.json').then(r=>r.json()),new Promise((ok,bad)=>{const i=new Image();i.onload=()=>ok(i);i.onerror=bad;i.src='art/mine.png'})]).then(([a,i])=>{atlas=a;img=i;
+  awayGrant((Date.now()-(S.t||Date.now()))/1000);S.seen.miner=1;if(S.taps>=3){hintGone=true;$('#taphint').style.opacity=0}
+  buildCards();requestAnimationFrame(frame)});
+if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js').catch(()=>{});
+</script>
+</body>
+</html>
