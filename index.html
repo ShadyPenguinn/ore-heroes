@@ -31,7 +31,7 @@ body{font-family:var(--body);font-size:14px;line-height:1.45;padding:0 max(16px,
 .hud{position:sticky;top:0;z-index:5;background:var(--bg);padding-top:max(8px,env(safe-area-inset-top,0px));padding-bottom:8px;box-shadow:0 10px 14px -8px rgba(0,0,0,.6)}
 .res{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px}
 .res.three{grid-template-columns:1fr 1fr 1fr}
-.places{display:none;gap:6px;margin-bottom:8px}.places.on{display:grid;grid-template-columns:1fr 1fr}
+.places{display:none;gap:6px;margin-bottom:8px}.places.on{display:grid;grid-template-columns:1fr 1fr}.places.three{grid-template-columns:1fr 1fr 1fr}
 .places .b{min-height:34px;font-family:var(--display);letter-spacing:.06em}
 .chip{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:4px 8px;display:flex;flex-direction:column;align-items:center;line-height:1.15;font-variant-numeric:tabular-nums;font-weight:700;font-size:16px}
 .chip small{color:var(--muted);font-weight:600;font-size:10px;text-transform:uppercase;letter-spacing:.08em}
@@ -90,6 +90,16 @@ h2{font-family:var(--display);font-size:17px;letter-spacing:.04em;margin:0}
 .fstars{min-width:88px;text-align:right;font-family:var(--display);font-size:15px;color:var(--gold);white-space:nowrap}
 .fresult{position:absolute;left:0;right:0;bottom:0;padding:5px 10px;text-align:center;font:700 14px var(--display);color:var(--ember);background:linear-gradient(transparent,rgba(10,8,6,.85) 45%);pointer-events:none;opacity:0;transition:opacity .25s}
 .fresult.on{opacity:1}
+.apanel h3{margin:0;font:700 17px var(--display);letter-spacing:.04em}
+.ahead{display:flex;align-items:center;gap:10px}.ahead .grow{flex:1;min-width:0}
+.aw{display:flex;gap:10px;align-items:center}.aw .ic{flex:0 0 auto;width:56px;height:56px;border:1px solid var(--line);border-radius:10px;display:grid;place-items:center;background:var(--panel2)}
+.aw .ic canvas{width:48px;height:48px;image-rendering:pixelated}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:4px 10px;font-size:13px}.stats span{color:var(--muted)}.stats b{float:right;font-variant-numeric:tabular-nums}
+.stats .up{color:#72d394}.stats .dn{color:#e05a4a}
+.wgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(60px,1fr));gap:6px}
+.wgrid .b{height:66px;padding:2px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;position:relative}
+.wgrid canvas{width:40px;height:40px;image-rendering:pixelated}.wgrid small{font-size:11px;font-weight:700}
+.wgrid .held{position:absolute;top:2px;right:4px;font-size:10px;color:var(--muted)}
 .wbtn{width:52px;height:44px;padding:0;display:grid;place-items:center}.wbtn canvas{width:40px;height:40px;image-rendering:pixelated}
 </style>
 </head>
@@ -101,10 +111,11 @@ h2{font-family:var(--display);font-size:17px;letter-spacing:.04em;margin:0}
       <div class="chip"><small>Ore per second</small><b id="ops">0</b></div>
       <div class="chip" id="wchip" style="display:none"><small>Forged</small><b id="wpns">0</b></div>
     </div>
-    <div class="places" id="places"><button class="b sm on" data-v="mine">Mine</button><button class="b sm" data-v="forge">Forge</button></div>
+    <div class="places" id="places"><button class="b sm on" data-v="mine">Mine</button><button class="b sm" data-v="forge">Forge</button><button class="b sm" data-v="army" style="display:none">Army</button></div>
     <div class="scene" id="scene"><canvas id="cv" width="480" height="210"></canvas><div class="taphint" id="taphint">Tap the rock</div><div class="fresult" id="fresult"></div></div>
     <div class="ftrack" id="ftrack" style="display:none"><div class="ftop"><div class="fpips" id="fpipbox"><div class="fpipsin" id="fpips"></div></div><button class="b go fact" id="fact">Heat</button><span class="fstars" id="fstars"></span></div><div class="track idle" id="track"><div class="zone" id="zone"><i></i></div><div class="marker" id="marker"></div><div class="sparks" id="sparks"></div><div class="tlabel" id="tlabel"></div></div></div>
   </div>
+  <section class="panel apanel" id="apanel" style="display:none"></section>
   <section class="panel fpanel" id="fpanel" style="display:none">
     <div class="seg wpick" id="wpick"></div>
     <div class="row frow"><button class="b sm" id="fminus" aria-label="Fewer Folds">−</button><b id="fsize" class="fsize"></b><button class="b sm" id="fplus" aria-label="More Folds">+</button><span class="note" id="fcost"></span></div>
@@ -224,6 +235,18 @@ const starMult=n=>n>=20?1.76*Math.pow(1.035,n-20):[1,1.15,1.3,1.45,1.6][[0,4,7,1
 const specOf=w=>(STATIONS.find(s=>s.w===w)||{}).k;
 // a weapon's power: stars and its smith's bonus, locked in when forged
 const powerOf=wp=>Math.round(10*starMult(wp.stars)*(1+0.03*(wp.spec||0)));
+/* ---------- weapons as items, and the army ----------
+   Stats as in Blacksmith Battles: a base per kind x the stars curve; the weapon's smith adds +3% per level to its two signature stats. */
+const STN=['Might','Magic','Crit','Haste','Defense','Magic Defense','Vigor'];
+const WBASE={sword:[10,0,8,10,6,4,40],axe:[13,0,6,7,5,3,42],spear:[11,0,6,9,4,4,36],shield:[4,0,2,7,10,7,44],hammer:[20,0,5,5,6,3,46]};
+const SIG={sword:['Might','Haste'],axe:['Might','Vigor'],spear:['Haste','Might'],shield:['Defense','Magic Defense'],hammer:['Might','Defense']};
+function wStats(it){const k=starMult(it.stars),sb=1+0.03*(it.spec||0);return WBASE[it.w].map((b,i)=>Math.round(b*(STN[i]==='Haste'?Math.min(k,7):k)*(SIG[it.w].includes(STN[i])?sb:1)))}
+function wPower(it){const[m,mg,cr,h,df,md,v]=wStats(it);return Math.round((m+mg)*2+Math.min(50,cr)+h*2+df+md*.6+v/4)}
+const itemById=id=>S.inv.find(x=>x.id===id);
+const holderOf=id=>S.heroes.findIndex(h=>h.eq===id);
+const HNAMES=['Bran','Ilse','Torvald','Wren','Osric','Maren','Edda','Rook','Sable','Corin','Hale','Tamsin','Ulric','Nell','Garrick','Brisa'];
+function recruit(){const used=S.heroes.map(h=>h.n),n=HNAMES.find(x=>!used.includes(x))||('Hero '+(S.heroes.length+1));S.heroes.push({n,eq:null});return n}
+function openArmy(){S.army=1;const n=recruit();S.sel=0;save();setPlaces();toast(`A wandering hero heard about your smithing: ${n} has joined you. Tap Army.`)}
 const HK=Object.fromEntries(HEROES.map(h=>[h.k,h]));
 const TRIP=6,PHANTOM_EVERY=1.2,BLAST=20;
 let S;
@@ -255,14 +278,16 @@ const nightText=()=>lv('lamp')?`for ${nightHours()} h at ${nightPct()}% while yo
 const costAt=(k,l)=>Math.ceil(HK[k].base*Math.pow(1.15,l));
 function costN(k,n){let c=0,l=lv(k);for(let i=0;i<n;i++)c+=costAt(k,l+i);return c}
 
-function fresh(){return{ore:0,mined:0,taps:0,blasts:0,h:{miner:1},seen:{miner:1},t:Date.now(),lastBackup:0,forge:0,view:'mine',forged:0,made:{},best:{},pick:{w:'sword',n:3},v:3}}
+function fresh(){return{ore:0,mined:0,taps:0,blasts:0,h:{miner:1},seen:{miner:1},t:Date.now(),lastBackup:0,forge:0,view:'mine',forged:0,made:{},best:{},pick:{w:'sword',n:3},inv:[],nid:1,army:0,heroes:[],sel:0,explore:0,v:4}}
 function save(){S.t=Date.now();try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
 function load(){let d=null;try{d=JSON.parse(localStorage.getItem(KEY)||'null')}catch(e){}S=Object.assign(fresh(),d||{});S.h=Object.assign({miner:1},S.h);migrate()}
 // v2 (Nov 19 evening): the first forge (auto smiths, 1M-ore swords) was replaced by the forging minigame; its forge levels and weapon counts go
 function migrate(){if((S.v||1)<2){for(const k of ['smith','smelter','axesmith','spearwright','shieldwright','hammersmith']){delete S.h[k];delete S.seen[k]}
   delete S.wpn;delete S.work;delete S.blows;S.forge=0;S.view='mine';S.ingots=0;S.forged=0;S.made={};S.best={};S.pick={w:'sword',n:3};S.v=2}
   // v3: ingots and the Smelter are gone (Jonathan: ingots were a pointless second currency). Refund his levels and any ingots as ore
-  if(S.v<3){const L=S.h.smelter||0;if(L)S.ore+=15000*(Math.pow(1.15,L)-1)/0.15;S.ore+=Math.floor(S.ingots||0)*50;delete S.h.smelter;delete S.seen.smelter;delete S.ingots;S.v=3}}
+  if(S.v<3){const L=S.h.smelter||0;if(L)S.ore+=15000*(Math.pow(1.15,L)-1)/0.15;S.ore+=Math.floor(S.ingots||0)*50;delete S.h.smelter;delete S.seen.smelter;delete S.ingots;S.v=3}
+  // v4: every forged weapon is kept as an item (only the best of each kind was kept before); a first weapon opens the army
+  if(S.v<4){S.inv=[];S.nid=1;for(const [w,b] of Object.entries(S.best||{}))S.inv.push({id:S.nid++,w,stars:b.stars,g:b.g,spec:b.spec||0});S.heroes=[];S.sel=0;S.explore=0;S.army=0;if(S.inv.length){S.army=1;recruit()}S.v=4}}
 
 /* ---------- the scene: art/mine.png + art/mine.json, rendered from art/src/mine.js (see tools/) ---------- */
 const cv=$('#cv'),ctx=cv.getContext('2d');ctx.imageSmoothingEnabled=false;
@@ -296,7 +321,7 @@ class Actor{
 }
 /* ---------- earning ---------- */
 const pops=[],parts=[];
-function gain(n,at,col){if(n<=0)return;S.ore+=n;S.mined+=n;if(S.view!=='forge')pops.push({x:at[0],y:at[1],txt:'+'+fmtN(n),t:0,col:col||'#ffd08a'})}
+function gain(n,at,col){if(n<=0)return;S.ore+=n;S.mined+=n;if(S.view==='mine')pops.push({x:at[0],y:at[1],txt:'+'+fmtN(n),t:0,col:col||'#ffd08a'})}
 function burst(at,n,cols,sp=1,pl='mine'){if(pl!==(S.view||'mine'))return;for(let i=0;i<n;i++)parts.push({x:at[0],y:at[1],vx:(Math.random()-.5)*90*sp,vy:-Math.random()*80*sp-10,life:.5+Math.random()*.4,c:cols[i%cols.length]})}
 const CHIPS=['#d88038','#f0b070','#9a4a22','#584738'];
 // a swing carries how many taps it stands for (the Foreman's calls get bundled once they come faster than the Miner can swing)
@@ -308,7 +333,7 @@ function swing(n){A.miner.seg==='strike'?minerLoad+=n:(minerLanded(),minerLoad=n
 function minerLanded(){if(!minerLoad)return;gain(minerTap()*minerLoad,SPOT.miner.pop);burst(SPOT.miner.hit,8,CHIPS);minerLoad=0}
 function prospLanded(){if(!prosLoad)return;gain(prospTap()*prosLoad,SPOT.pros.pop,'#bcd4ff');burst(SPOT.pros.hit,6,CHIPS,.7);prosLoad=0}
 let hintGone=false;
-function tap(){if(S.view==='forge')return F?strike():heat();S.taps++;if(!hintGone&&S.taps>=3){hintGone=true;$('#taphint').style.opacity=0}swing(1)}
+function tap(){if(S.view==='army')return;if(S.view==='forge')return F?strike():heat();S.taps++;if(!hintGone&&S.taps>=3){hintGone=true;$('#taphint').style.opacity=0}swing(1)}
 
 /* ---------- the forge: Blacksmith Battles' forging minigame ---------- */
 const ANVIL={pop:[304,82],hit:[262,112]};
@@ -348,13 +373,13 @@ function quench(){if(F&&!F.done&&F.res.length){F.done=true;finishForge()}}
 let lastResult='';
 function finishForge(){const raw=scoreOf(F.res),missed=F.res.some(r=>r==='M'||r==='O'),lost=missed?missLoss(raw):0,stars=Math.max(0,raw-lost),w=F.w;
   if(stars<=0){lastResult='The blank cracked apart';F=null;save();refreshForge();return}
-  const g=gradeOf(stars),wp={stars,g,spec:lv(specOf(w)||'')||0};S.forged++;S.made[w]=(S.made[w]||0)+1;
+  const g=gradeOf(stars),wp={stars,g,spec:lv(specOf(w)||'')||0};S.forged++;S.made[w]=(S.made[w]||0)+1;S.inv.push({id:S.nid++,w,stars,g,spec:wp.spec});
   const b=S.best[w],better=!b||powerOf(wp)>powerOf(b);if(better)S.best[w]=wp;
   lastResult=`${GR[g].n} ${WEAP[w].n} ★${stars}${missed?` (−${lost} for the miss)`:''}`;
   popAt(ANVIL.pop,`${GR[g].n}!`,GCOL[g]);if(g>=3)burst(ANVIL.hit,24,[GCOL[g],'#fff2c0','#ffd060'],1.6,'forge');
   // the weapon's smith takes it to their station to finish it
   const st=STATIONS.find(x=>x.w===w);if(st&&lv(st.k))A[w].play(w==='sword'?'study':'strike',w==='sword'?[]:['recover','strike','recover']);
-  F=null;save();refreshForge();refreshCards()}
+  F=null;if(!S.army)setTimeout(openArmy,900);save();refreshForge();refreshCards()}
 function popAt(at,txt,col){if(S.view==='forge')pops.push({x:at[0],y:at[1],txt,t:0,col,F:true})}
 // the Swordsmith hones his blade, and every so often stops to read up on swords
 let studyT=6;
@@ -426,9 +451,9 @@ function drawFx(dt){
 }
 // switching places slides the scenes like a strip: the mine on the left, the forge to its right
 let slide=null;
-const drawPlace=(v,dt)=>v==='forge'&&S.forge?drawForge(dt):draw(dt);
+const drawPlace=(v,dt)=>v==='forge'&&S.forge?drawForge(dt):v==='army'&&S.army?drawArmy(dt):draw(dt);
 function drawScene(dt){if(!slide)return drawPlace(S.view,dt);slide.t=Math.min(1,slide.t+dt/.45);
-  const k=slide.t<.5?2*slide.t*slide.t:1-Math.pow(-2*slide.t+2,2)/2,dir=S.view==='forge'?1:-1;
+  const k=slide.t<.5?2*slide.t*slide.t:1-Math.pow(-2*slide.t+2,2)/2,PL=['mine','forge','army'],dir=PL.indexOf(S.view)>PL.indexOf(slide.from)?1:-1;
   ctx.save();ctx.translate(Math.round(-dir*k*480),0);drawPlace(slide.from,dt);ctx.restore();
   ctx.save();ctx.translate(Math.round(dir*(1-k)*480),0);drawPlace(S.view,dt);ctx.restore();
   ctx.fillStyle='#000';ctx.fillRect(Math.round(dir>0?480*(1-k)-1:480*k-1),0,2,210);if(slide.t>=1)slide=null}
@@ -447,6 +472,56 @@ function drawForge(dt){
   if(A.smith.seg==='strike'||(A.smith.seg==='recover'&&A.smith.t<.08))glow(ANVIL.hit[0],ANVIL.hit[1],14,'255,200,120',.5);
   drawFx(dt);ctx.restore();
 }
+/* ---------- the army's camp ---------- */
+// heroes stand in a line in front of the fire: one rendered spot, shifted sideways for each place in the line
+const SLOTX=[0,42,-42,84,-84,126];
+let aatlas=null,aimg=null;
+const sprA=(n,x=0,y=0)=>{const s=aatlas.sprites[n];if(s)ctx.drawImage(aimg,s[0],s[1],s[2],s[3],s[4]+x,s[5]+y,s[2],s[3])};
+const heroKind=h=>{const it=h.eq&&itemById(h.eq);return it?it.w:'none'};
+const heroFrame=(h,i)=>{const L=aatlas.heroes['hero-'+heroKind(h)].idle.f;return L[Math.floor(((clock+i*.37)%1)*L.length)]};
+function drawArmy(dt){
+  const bg=aatlas.sprites.bg;ctx.drawImage(aimg,bg[0],bg[1],bg[2],bg[3],-3,-3,486,216);
+  glow(130,128,46+4*Math.sin(clock*4),'255,150,60',.2);
+  {const L=aatlas.heroes.fire.idle.f;sprA(L[Math.floor((clock%1)*L.length)])}
+  S.heroes.forEach((h,i)=>{if(i>=SLOTX.length)return;const f=heroFrame(h,i),s=aatlas.sprites[f],x=SLOTX[i],cx=s[4]+x+s[2]/2,foot=s[5]+s[3];
+    if(i===S.sel){ctx.save();ctx.fillStyle='rgba(255,200,110,.28)';ctx.beginPath();ctx.ellipse(cx,foot-1,14,4,0,0,Math.PI*2);ctx.fill();ctx.restore()}
+    sprA(f,x);
+    ctx.save();ctx.font='bold 9px system-ui,sans-serif';ctx.textAlign='center';ctx.fillStyle='rgba(0,0,0,.7)';ctx.fillText(h.n,cx+1,s[5]-3);ctx.fillStyle=i===S.sel?'#ffd27a':'#d8d0c0';ctx.fillText(h.n,cx,s[5]-4);ctx.restore()});
+  drawFx(dt);
+}
+function armyTap(x,y){let best=-1,bd=1e9;S.heroes.forEach((h,i)=>{if(i>=SLOTX.length)return;const s=aatlas.sprites[heroFrame(h,i)],cx=s[4]+SLOTX[i]+s[2]/2,cy=s[5]+s[3]/2,d=Math.abs(x-cx)+Math.abs(y-cy)*.4;if(Math.abs(x-cx)<22&&d<bd){bd=d;best=i}});
+  if(best>=0){S.sel=best;amode='hero';refreshArmy();save()}}
+// the panel under the camp: the hero, their weapon, then your weapons as sprites, then one weapon's details
+let amode='hero',adet=null;
+const wTitle=it=>`${GR[it.g].n} ${WEAP[it.w].n}`;
+function statGrid(it,vs){const a=wStats(it),b=vs?wStats(vs):null;return '<div class="stats">'+STN.map((n,i)=>{if(!a[i]&&!(b&&b[i]))return '';const d=b?a[i]-b[i]:0;return `<div><span>${n}</span> <b>${fmtN(a[i])}${d?` <i class="${d>0?'up':'dn'}">${d>0?'+':''}${fmtN(d)}</i>`:''}</b></div>`}).join('')+'</div>'}
+function iconBox(it){const d=document.createElement('div');d.className='ic';d.style.borderColor=GCOL[it.g];d.appendChild(weaponIcon(it.w));return d}
+function refreshArmy(){const on=S.army&&S.view==='army';$('#apanel').style.display=on?'':'none';if(!on)return;const P=$('#apanel'),h=S.heroes[S.sel]||S.heroes[0];if(!h)return;
+  const cur=h.eq&&itemById(h.eq);
+  if(amode==='hero'){
+    P.innerHTML=`<div class="ahead"><div class="grow"><h3>${h.n}</h3><span class="note">${S.heroes.length>1?`Hero ${S.sel+1} of ${S.heroes.length} · tap a hero to switch`:'Your first hero'}</span></div></div>`+
+      (cur?`<div class="aw" id="acur"><div class="grow"><b style="color:${GCOL[cur.g]}">${wTitle(cur)}</b> <span class="note">★${cur.stars} · Power ${fmtN(wPower(cur))}</span></div></div>${statGrid(cur)}<div class="row"><button class="b go" data-a="pick">Change weapon</button><button class="b" data-a="unequip">Unequip</button></div>`
+          :`<p class="note">Nothing equipped yet.</p><div class="row"><button class="b go" data-a="pick" ${S.inv.length?'':'disabled'}>Equip</button></div>`);
+    if(cur)P.querySelector('#acur').prepend(iconBox(cur));
+  }else if(amode==='pick'){
+    const list=S.inv.slice().sort((a,b)=>wPower(b)-wPower(a)),shown=list.slice(0,48);
+    P.innerHTML=`<div class="ahead"><div class="grow"><h3>Equip ${h.n}</h3><span class="note">${S.inv.length} weapon${S.inv.length>1?'s':''}, strongest first</span></div><button class="b sm" data-a="back">Back</button></div><div class="wgrid">`+
+      shown.map(it=>{const hi=holderOf(it.id);return `<button class="b${it.id===h.eq?' on':''}" data-id="${it.id}" style="border-color:${GCOL[it.g]}">${hi>=0?`<span class="held">${S.heroes[hi].n}</span>`:''}<small style="color:${GCOL[it.g]}">★${it.stars}</small></button>`}).join('')+'</div>'+
+      (list.length>shown.length?`<p class="note">and ${list.length-shown.length} weaker ones</p>`:'');
+    for(const b of P.querySelectorAll('[data-id]'))b.prepend(weaponIcon(itemById(+b.dataset.id).w));
+  }else{
+    const it=itemById(adet);if(!it){amode='pick';return refreshArmy()}const hi=holderOf(it.id),mine=h.eq===it.id,dp=cur&&!mine?wPower(it)-wPower(cur):0,sm=specOf(it.w);
+    P.innerHTML=`<div class="ahead"><div class="grow"><h3 style="color:${GCOL[it.g]}">${wTitle(it)}</h3><span class="note">★${it.stars} · Power ${fmtN(wPower(it))}${dp?` <b class="${dp>0?'up':'dn'}" style="color:${dp>0?'#72d394':'#e05a4a'}">${dp>0?'+':''}${fmtN(dp)}</b>`:''}</span></div><button class="b sm" data-a="pick">Back</button></div>`+
+      `<div class="aw" id="adet"><p class="note grow">${it.spec?`+${3*it.spec}% ${SIG[it.w].join(' and ')} from the ${HK[sm].n}, locked in.`:'Forged before you had its smith.'}${hi>=0&&!mine?` Held by ${S.heroes[hi].n}.`:''}</p></div>${statGrid(it,cur&&!mine?cur:null)}`+
+      `<div class="row">${mine?`<span class="note">${h.n} is holding this one.</span>`:`<button class="b go" data-a="equip">${hi>=0?`Take from ${S.heroes[hi].n} and equip`:`Equip ${h.n}`}</button>`}</div>`;
+    P.querySelector('#adet').prepend(iconBox(it));
+  }}
+$('#apanel').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const h=S.heroes[S.sel];
+  if(b.dataset.id){adet=+b.dataset.id;amode='det'}
+  else if(b.dataset.a==='pick')amode='pick';else if(b.dataset.a==='back')amode='hero';
+  else if(b.dataset.a==='unequip'){h.eq=null;save()}
+  else if(b.dataset.a==='equip'){const hi=holderOf(adet);if(hi>=0)S.heroes[hi].eq=null;h.eq=adet;amode='hero';toast(`${h.n} takes up the ${wTitle(itemById(adet))}`);if(!S.explore)S.explore=1;save()}
+  refreshArmy()});
 const hexRgb=h=>[1,3,5].map(i=>parseInt(h.slice(i,i+2),16)).join(',');
 /* ---------- hero cards ---------- */
 const PIC={smith:['smith-idle-0'],swordsmith:['sword-idle-0'],axesmith:['axe-idle-0'],spearwright:['spear-idle-0'],shieldwright:['shield-idle-0'],hammersmith:['hammer-idle-0'],miner:['miner-idle-0',0,0,34],carter:['cart-out-16',0,0,30],phantom:['phantom-strike-4',0,0,40],prospector:['pros-idle-0',0,0,40],foreman:['boss-idle-0',0,0,26],blaster:['blast-idle-0',0,0,40],lamp:['lamp-idle-0',0,0,24],time:['time-idle-0',0,0,26]};
@@ -476,7 +551,7 @@ function buy(k){const L=lv(k),n=1,c=costN(k,n);if(S.ore<c)return;S.ore-=c;const 
 
 /* ---------- ui ---------- */
 let toastT=0;function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),2600)}
-$('#scene').addEventListener('pointerdown',e=>{e.preventDefault();tap()});
+$('#scene').addEventListener('pointerdown',e=>{e.preventDefault();if(S.view==='army'){const r=$('#cv').getBoundingClientRect();armyTap((e.clientX-r.left)/r.width*480,(e.clientY-r.top)/r.height*210);return}tap()});
 $('#track').addEventListener('pointerdown',e=>{e.preventDefault();tap()});
 // iPhone: fast taps must never zoom the page (double-tap zoom and pinch)
 for(const ev of ['gesturestart','gesturechange','gestureend','dblclick'])document.addEventListener(ev,e=>e.preventDefault(),{passive:false});
@@ -498,9 +573,10 @@ $('#fact').addEventListener('click',()=>{if(F)quench();else heat();refreshForge(
 $('#fpanel').addEventListener('click',e=>{const t=e.target.closest('button');if(!t)return;
   if(t.dataset.w&&!F){S.pick.w=t.dataset.w}else if(t.id==='fminus'&&!F)S.pick.n--;else if(t.id==='fplus'&&!F)S.pick.n++;refreshForge();save()});
 function setPlaces(){$('#places').classList.toggle('on',!!S.forge);$('#res').classList.toggle('three',!!S.forge);$('#wchip').style.display=S.forge?'':'none';
-  if(!S.forge)S.view='mine';for(const b of $('#places').children)b.classList.toggle('on',b.dataset.v===S.view);
-  const done=S.view==='forge'?fhintGone:hintGone;$('#taphint').textContent=S.view==='forge'?'Tap to heat a blank, then strike':'Tap the rock';refreshForge();$('#taphint').style.opacity=done?0:1}
-$('#places').addEventListener('click',e=>{const b=e.target.closest('[data-v]');if(!b||!S.forge||b.dataset.v===S.view)return;slide={from:S.view,t:0};S.view=b.dataset.v;pops.length=0;parts.length=0;setPlaces();buildCards();save()});
+  if(!S.forge)S.view='mine';if(!S.army&&S.view==='army')S.view='mine';$('#places').classList.toggle('three',!!S.army);$('[data-v=army]').style.display=S.army?'':'none';
+  for(const b of $('#places').children)b.classList.toggle('on',b.dataset.v===S.view);refreshArmy();
+  const done=S.view==='forge'?fhintGone:hintGone;$('#taphint').textContent=S.view==='forge'?'Tap to heat a blank, then strike':'Tap the rock';refreshForge();$('#taphint').style.opacity=done||S.view==='army'?0:1}
+$('#places').addEventListener('click',e=>{const b=e.target.closest('[data-v]');if(!b||!S.forge||b.dataset.v===S.view)return;slide={from:S.view,t:0};S.view=b.dataset.v;amode='hero';pops.length=0;parts.length=0;setPlaces();buildCards();save()});
 let resetArm=false;
 $('#reset').onclick=()=>{if(!resetArm){resetArm=true;$('#reset').textContent='Tap again to erase this save';setTimeout(()=>{resetArm=false;$('#reset').textContent='Start over'},3000);return}S=fresh();save();setPlaces();buildCards();toast('A fresh mine')};
 $('#savefile').onclick=async()=>{S.lastBackup=Date.now();save();const d=new Date(),name=`ore-heroes-save-${d.toISOString().slice(0,10)}.json`,blob=new Blob([JSON.stringify({game:'ore-heroes',v:1,saved:d.toISOString(),S})],{type:'application/json'}),file=new File([blob],name,{type:'application/json'});
@@ -521,7 +597,7 @@ window.addEventListener('pagehide',save);
 
 load();
 const pic=src=>new Promise((ok,bad)=>{const i=new Image();i.onload=()=>ok(i);i.onerror=bad;i.src=src});
-Promise.all([fetch('art/mine.json').then(r=>r.json()),pic('art/mine.png'),fetch('art/forge.json').then(r=>r.json()),pic('art/forge.png')]).then(([a,i,fa,fi])=>{atlas=a;img=i;fatlas=fa;fimg=fi;
+Promise.all([fetch('art/mine.json').then(r=>r.json()),pic('art/mine.png'),fetch('art/forge.json').then(r=>r.json()),pic('art/forge.png'),fetch('art/army.json').then(r=>r.json()),pic('art/army.png')]).then(([a,i,fa,fi,aa,ai])=>{atlas=a;img=i;fatlas=fa;fimg=fi;aatlas=aa;aimg=ai;
   A.miner=new Actor('miner',e=>{if(e==='strike')minerLanded()});A.pros=new Actor('pros',e=>{if(e==='strike')prospLanded()});
   A.phantom=new Actor('phantom',e=>{if(e==='strike'){gain(phantomRate()*PHANTOM_EVERY,SPOT.phantom.pop,'#b8fff0');burst(SPOT.phantom.hit,6,['#8affe0','#d88038','#f0b070'],.7)}});
   A.boss=new Actor('boss');A.blast=new Actor('blast');A.lamp=new Actor('lamp');A.time=new Actor('time');
