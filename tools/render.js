@@ -1,7 +1,7 @@
 // Renders every frame of the mine with ink-studio, into tools/frames/ (not committed); then `python3 tools/pack.py` packs
 // them into art/mine.png + art/mine.json. Ink-studio lives in the Blacksmith Battles repo (forge-splat-test/addons/splats/
 // tools/ink-studio); point INK_STUDIO at its cli/ink-studio.js, or keep a blacksmith-battles clone next to this repo.
-// Usage: node tools/render.js mine|forge   (then python3 tools/pack.py mine|forge)
+// Usage: node tools/render.js mine|forge|army   (then python3 tools/pack.py mine|forge|army)
 const { spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
@@ -39,6 +39,11 @@ if (WHICH === 'mine') {
   jobs.push({ name: 'cart-parked', env: { OH_LAYER: 'cart', OH_DIR: 'in', OH_Z: '-2.9', OH_NOBODY: '1' }, t: 0 });
   for (const dir of ['out', 'in'])
     CART_Z.forEach((z, i) => { const n = `cart-${dir}-${i}`; layout.cart[dir].push(n); jobs.push({ name: n, env: { OH_LAYER: 'cart', OH_DIR: dir, OH_Z: String(z) }, t: (i % 4) * 0.25 }); });
+} else if (WHICH === 'army') {
+  // art/src/army.js: a hero dressed for each weapon (or none) breathing at one spot, and the campfire
+  const H = {};
+  for (const w of ['none', 'sword', 'axe', 'spear', 'shield', 'hammer']) H['hero-' + w] = { idle: steps(0, 1, 8) };
+  clips({ ...H, fire: { idle: steps(0, 1, 12) } });
 } else {
   // art/src/forge.js: the Blacksmith and the five smiths swing like the mine's picks; the fire loops
   clips({
