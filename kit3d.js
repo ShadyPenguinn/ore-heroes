@@ -31,20 +31,29 @@ export function stage(scene2d, id) {
   renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   const scene = new THREE.Scene(); scene.background = new THREE.Color(0x0a0807);
   const cam = new THREE.PerspectiveCamera(30, W / H, .1, 100);
-  cam.fov = 2 * Math.atan(Math.tan(THREE.MathUtils.degToRad(19.8)) / (W / H)) * 180 / Math.PI;
+  const T0 = Math.tan(THREE.MathUtils.degToRad(19.8)) / (W / H); // half-height of the 480x210 stage's view
   const CAM = new THREE.Vector3(0, 5.2, 17), LOOK = new THREE.Vector3(0, 2.1, -0.6);
-  cam.position.copy(CAM); cam.lookAt(LOOK); cam.updateProjectionMatrix(); cam.updateMatrixWorld();
+  cam.fov = 2 * Math.atan(T0) * 180 / Math.PI; cam.position.copy(CAM); cam.lookAt(LOOK); cam.updateProjectionMatrix(); cam.updateMatrixWorld();
   const v = new THREE.Vector3();
+  // stage coordinates (480x210) of a point; worked out once with the stage's own view, which the box always keeps in its middle
   const proj = (x, y, z) => { v.set(x, y, z).project(cam); return [(v.x + 1) / 2 * W, (1 - v.y) / 2 * H] };
-  const resize = () => { const r = canvas.getBoundingClientRect(); if (r.width) renderer.setSize(r.width, r.height, false) };
-  new ResizeObserver(resize).observe(scene2d); resize();
+  // the box can be taller or wider than the stage (window.SCN: box size and the stage's scale): the camera keeps the stage's view
+  // in the middle at the same scale and shows more of the scene around it
+  let ver = -1, sc = 1;
+  const resize = () => {
+    const L = window.SCN || {w: scene2d.clientWidth, h: scene2d.clientHeight, s: scene2d.clientWidth / W, v: 0};
+    if (L.v === ver || !L.w) return; ver = L.v; sc = L.s;
+    renderer.setSize(L.w, L.h, false); cam.aspect = L.w / L.h;
+    cam.fov = 2 * Math.atan(T0 * L.h / (H * L.s)) * 180 / Math.PI; cam.updateProjectionMatrix()
+  };
   let shown = false;
   return {
     canvas, renderer, scene, cam, proj,
     // ox: the scene's offset in 480-wide units while the places slide; shake: the game's shake timer
     draw(ox, shake) {
-      if (!shown) { canvas.style.display = ''; shown = true; resize() }
-      canvas.style.transform = ox ? `translateX(${ox / W * 100}%)` : '';
+      if (!shown) { canvas.style.display = ''; shown = true }
+      resize();
+      canvas.style.transform = ox ? `translateX(${ox * sc}px)` : '';
       const j = shake ? .25 * shake : 0;
       cam.position.set(CAM.x + (Math.random() - .5) * j, CAM.y + (Math.random() - .5) * j, CAM.z);
       renderer.render(scene, cam)

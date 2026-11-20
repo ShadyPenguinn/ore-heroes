@@ -23,8 +23,8 @@ export async function start(scene2d) {
     im.castShadow = true; im.receiveShadow = true; scene.add(im); return im
   }
   const floor = [], wall = [], wood = [];
-  for (let ix = -7; ix < 8; ix++) for (let iy = -3; iy < 5; iy++) { const k = .85 + rnd() * .3, b = (ix * 7 + iy * 3) % 3 ? [.16, .13, .11] : [.20, .16, .13]; floor.push([[ix + (iy % 2 ? .5 : 0), -.05, -iy], [.96, .1, .96], b.map(v => v * k)]) }
-  for (let iz = 0; iz < 8; iz++) for (let ix = -8; ix < 9; ix++) { const k = .85 + rnd() * .3, b = (ix + iz) % 3 ? [.20, .17, .15] : [.26, .22, .19]; wall.push([[ix * 1.1 + (iz % 2) * .55, .35 + iz * .72, -4.6], [1.06, .68, .6], b.map(v => v * k)]) }
+  for (let ix = -9; ix < 10; ix++) for (let iy = -9; iy < 5; iy++) { const k = .85 + rnd() * .3, b = (ix * 7 + iy * 3) % 3 ? [.16, .13, .11] : [.20, .16, .13]; floor.push([[ix + (iy % 2 ? .5 : 0), -.05, -iy], [.96, .1, .96], b.map(v => v * k)]) }
+  for (let iz = 0; iz < 14; iz++) for (let ix = -8; ix < 9; ix++) { const k = .85 + rnd() * .3, b = (ix + iz) % 3 ? [.20, .17, .15] : [.26, .22, .19]; wall.push([[ix * 1.1 + (iz % 2) * .55, .35 + iz * .72, -4.6], [1.06, .68, .6], b.map(v => v * k)]) }
   for (const sx of [-8.2, 8.2]) for (let iz = 0; iz < 6; iz++) for (let iy = -3; iy < 5; iy++) { const k = .85 + rnd() * .3, b = (iy + iz) % 3 ? [.20, .17, .15] : [.26, .22, .19]; wall.push([[sx, .35 + iz * .72, -(iy * 1.1 + (iz % 2) * .55)], [.6, .68, 1.06], b.map(v => v * k)]) }
   for (const x of [-5.5, 0, 5.5]) wood.push([[x, 2.2, -4.15], [.3, 4.4, .3]]);
   wood.push([[0, 4.25, -4.15], [16, .32, .32]]);
@@ -35,7 +35,7 @@ export async function start(scene2d) {
   blocks(floor, [.16, .13, .11]); blocks(wall, [.2, .17, .15]); blocks(wood, [.33, .19, .10], .9);
   { const f = new THREE.Mesh(new THREE.PlaneGeometry(40, 40), new THREE.MeshStandardMaterial({color: 0x1a120d, roughness: 1})); f.rotation.x = -Math.PI / 2; f.position.y = -.12; f.receiveShadow = true; scene.add(f) }
 
-  const names = ['furnace_forge', 'anvil', 'bucket_metal', 'tongs', 'grindstone', 'rocks', 'rocks_gold', 'Copper_Bar', 'sword_A', 'hammer', 'Barbarian', 'Knight', 'Engineer', 'Druid', 'anim_tools', 'anim_general'];
+  const names = ['furnace_forge', 'anvil', 'bucket_metal', 'tongs', 'grindstone', 'rocks', 'rocks_gold', 'Copper_Bar', 'sword_A', 'hammer', 'axe_A', 'spear_A', 'shield_A', 'hammer_A', 'Barbarian', 'Knight', 'Rogue', 'Ranger', 'Cleric', 'Hoarder', 'anim_tools', 'anim_general'];
   const G = await loadAll(names);
   const clips = [...G.anim_tools.animations, ...G.anim_general.animations], clip = n => clips.find(c => c.name === n);
   function prop(name, pos, s = 1, rot = [0, 0, 0]) { const o = G[name].scene.clone(); o.position.set(...pos); o.scale.setScalar(s); o.rotation.set(...rot); shadows(o); scene.add(o); return o }
@@ -52,19 +52,12 @@ export async function start(scene2d) {
   blank.position.set(1.15, .66, -.5); blank.visible = false; scene.add(blank);
   const blankLight = new THREE.PointLight(0xff6a20, 0, 2.5, 2); blankLight.position.set(1.2, 1.0, -.2); scene.add(blankLight);
 
-  // the rack: your best weapon of each kind. Only swords and hammers have KayKit models; the rest are simple shapes for now.
-  const steel = new THREE.MeshStandardMaterial({color: 0xb8c0c8, metalness: .6, roughness: .4}), haft = new THREE.MeshStandardMaterial({color: 0x5a3a20, roughness: .9});
-  function shape(w) {
-    const g = new THREE.Group(), m = (geo, mat, p, r) => { const o = new THREE.Mesh(geo, mat); o.position.set(...p); if (r) o.rotation.set(...r); g.add(o) };
-    if (w === 'axe') { m(new THREE.CylinderGeometry(.04, .04, 1.3), haft, [0, .65, 0]); m(new THREE.BoxGeometry(.38, .3, .05), steel, [.16, 1.15, 0]) }
-    if (w === 'spear') { m(new THREE.CylinderGeometry(.03, .03, 1.7), haft, [0, .85, 0]); m(new THREE.ConeGeometry(.08, .32, 6), steel, [0, 1.85, 0]) }
-    if (w === 'shield') { m(new THREE.CylinderGeometry(.45, .45, .08, 20), steel, [0, .9, 0], [Math.PI / 2, 0, 0]); m(new THREE.CylinderGeometry(.36, .36, .1, 20), haft, [0, .9, .01], [Math.PI / 2, 0, 0]) }
-    shadows(g); return g
-  }
-  const RACK = {sword: 3.6, axe: 4.05, spear: 4.5, shield: 4.95, hammer: 5.3}, rack = {};
+  // the rack: your best weapon of each kind, KayKit's own weapon models standing on the floor against the back wall
+  const RACK = {sword: 3.55, axe: 4.0, spear: 4.5, shield: 4.95, hammer: 5.35}, rack = {};
+  const RACKM = {sword: ['sword_A', .95], axe: ['axe_A', 1.0], spear: ['spear_A', .62], shield: ['shield_A', .95], hammer: ['hammer_A', 1.0]};
   for (const [w, x] of Object.entries(RACK)) {
-    const o = w === 'sword' ? G.sword_A.scene.clone() : w === 'hammer' ? G.hammer.scene.clone() : shape(w);
-    if (w === 'sword') { o.scale.setScalar(.95); o.position.set(x, .45, -3.85) } else if (w === 'hammer') { o.scale.setScalar(1.1); o.position.set(x, .3, -3.85) } else o.position.set(x, .1, -3.8);
+    const [m, sc] = RACKM[w], o = G[m].scene.clone(); o.scale.setScalar(sc);
+    const b = new THREE.Box3().setFromObject(o); o.position.set(x, .12 - b.min.y, -3.85 - (b.max.z + b.min.z) / 2);
     shadows(o); o.visible = false; scene.add(o); rack[w] = o
   }
 
@@ -107,10 +100,10 @@ export async function start(scene2d) {
   // the station smiths: the Swordsmith hones at the grindstone and stops now and then to look the blade over
   const STN = {
     sword: {file: 'Knight', pos: [-4.4, 0, -1.75], rot: 0, held: 'sword_A', s: .6, work: 'Sawing', alt: 'Holding_A', prop: () => prop('grindstone', [-4.4, 0, -.6], .8)},
-    axe: {file: 'Engineer', pos: [6.3, 0, -1.2], rot: -Math.PI / 2, work: 'Working_A', alt: 'Working_C', prop: () => prop('anvil', [5.4, 0, -1.2], .7)},
-    spear: {file: 'Druid', pos: [-2.8, 0, -.2], rot: Math.PI / 2, work: 'Working_B', alt: 'Holding_A', prop: () => prop('anvil', [-1.9, 0, -.2], .7)},
-    shield: {file: 'Knight', pos: [3.4, 0, .6], rot: -Math.PI / 2, work: 'Working_C', alt: 'Holding_A', prop: () => prop('anvil', [2.6, 0, .6], .7)},
-    hammer: {file: 'Barbarian', pos: [-6.6, 0, .4], rot: Math.PI / 2, work: 'Working_A', alt: 'Working_B', prop: () => prop('anvil', [-5.7, 0, .4], .7)},
+    axe: {file: 'Rogue', pos: [6.3, 0, -1.2], rot: -Math.PI / 2, work: 'Working_A', alt: 'Working_C', prop: () => prop('anvil', [5.4, 0, -1.2], .7)},
+    spear: {file: 'Ranger', pos: [-2.8, 0, -.2], rot: Math.PI / 2, work: 'Working_B', alt: 'Holding_A', prop: () => prop('anvil', [-1.9, 0, -.2], .7)},
+    shield: {file: 'Cleric', pos: [3.4, 0, .6], rot: -Math.PI / 2, work: 'Working_C', alt: 'Holding_A', prop: () => prop('anvil', [2.6, 0, .6], .7)},
+    hammer: {file: 'Hoarder', pos: [-6.6, 0, .4], rot: Math.PI / 2, work: 'Working_A', alt: 'Working_B', prop: () => prop('anvil', [-5.7, 0, .4], .7)},
   };
   const st = {}, used = new Set(['Barbarian']);
   for (const [w, d] of Object.entries(STN)) {
