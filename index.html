@@ -67,7 +67,26 @@ h2{font-family:var(--display);font-size:17px;letter-spacing:.04em;margin:0}
 .panel .row{flex-wrap:wrap;justify-content:flex-start}
 .wpick{flex-wrap:wrap}.wpick .b{min-height:34px}
 .fsize{min-width:72px;text-align:center;font-variant-numeric:tabular-nums}
-#fresult{color:var(--fg);min-height:1.2em}
+.ftrack{margin-top:8px;display:flex;flex-direction:column;gap:6px}
+.fpips{overflow:hidden;height:32px}.fpipsin{display:flex;gap:8px;transition:transform .28s ease;padding:1px}
+.pip{flex:0 0 30px;width:30px;height:30px;border-radius:50%;border:1px solid var(--line);display:grid;place-items:center;font-size:12px;font-weight:700;color:var(--muted);background:var(--panel)}
+.pip.p{background:var(--ember);color:#1b120b;border-color:var(--ember)}
+.pip.g{background:var(--ember-soft);color:var(--ember);border-color:var(--ember)}
+.pip.m{color:#e05a4a;border-color:#e05a4a}
+.pip.now{border-color:var(--fg);box-shadow:0 0 0 2px rgba(255,255,255,.15)}
+.track{position:relative;height:64px;border-radius:10px;background:linear-gradient(90deg,#2a1d15,#3a2416 50%,#2a1d15);border:1px solid var(--line);overflow:hidden;cursor:pointer;touch-action:manipulation;user-select:none;-webkit-user-select:none}
+.zone{position:absolute;top:0;bottom:0;background:rgba(255,138,61,.28);border-left:1px solid rgba(255,170,110,.6);border-right:1px solid rgba(255,170,110,.6)}
+.zone i{position:absolute;top:0;bottom:0;left:30%;width:40%;background:rgba(255,214,150,.45);box-shadow:0 0 18px rgba(255,170,90,.8)}
+.marker{position:absolute;top:-4px;bottom:-4px;width:4px;margin-left:-2px;background:var(--fg);border-radius:2px;box-shadow:0 0 8px rgba(255,255,255,.7)}
+.track.idle .zone,.track.idle .marker{opacity:.25}
+.tlabel{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:0 12px;font-weight:600;font-size:13px;color:var(--fg);pointer-events:none}
+.sparks{position:absolute;inset:0;pointer-events:none}
+.spark{position:absolute;width:4px;height:4px;border-radius:50%;background:#ffd08a;box-shadow:0 0 6px #ff9a40;animation:spark .5s ease-out forwards}
+@keyframes spark{to{transform:translate(var(--dx),var(--dy));opacity:0}}
+.forge-shake{animation:fshake .18s}
+@keyframes fshake{25%{transform:translateX(-3px)}75%{transform:translateX(3px)}}
+.callout{display:flex;justify-content:space-between;gap:8px;min-height:22px;font-family:var(--display);font-size:15px;color:var(--ember)}
+.callout b{color:var(--gold);white-space:nowrap}
 </style>
 </head>
 <body>
@@ -80,13 +99,13 @@ h2{font-family:var(--display);font-size:17px;letter-spacing:.04em;margin:0}
     </div>
     <div class="places" id="places"><button class="b sm on" data-v="mine">Mine</button><button class="b sm" data-v="forge">Forge</button></div>
     <div class="scene" id="scene"><canvas id="cv" width="480" height="210"></canvas><div class="taphint" id="taphint">Tap the rock</div></div>
+    <div class="ftrack" id="ftrack" style="display:none"><div class="fpips"><div class="fpipsin" id="fpips"></div></div><div class="track idle" id="track"><div class="zone" id="zone"><i></i></div><div class="marker" id="marker"></div><div class="sparks" id="sparks"></div><div class="tlabel" id="tlabel"></div></div><div class="callout" id="callout"></div></div>
   </div>
   <section class="panel fpanel" id="fpanel" style="display:none">
     <div class="row" style="justify-content:space-between"><h2>Forge</h2><span class="note" id="fstock"></span></div>
     <div class="seg wpick" id="wpick"></div>
     <div class="row frow"><span class="note">Blank</span><button class="b sm" id="fminus" aria-label="Fewer Folds">−</button><b id="fsize" class="fsize"></b><button class="b sm" id="fplus" aria-label="More Folds">+</button><span class="note" id="fcost"></span></div>
     <div class="row"><button class="b go" id="fheat">Heat blank</button><button class="b" id="fquench" style="display:none">Quench</button><span class="note" id="fbest"></span></div>
-    <p class="note" id="fresult"></p>
   </section>
   <div class="cards" id="cards"></div>
   <section class="panel">
@@ -177,7 +196,8 @@ const place=h=>h.place||'mine';
 const WEAP={sword:{n:'Sword',p:'Swords'},axe:{n:'Axe',p:'Axes'},spear:{n:'Spear',p:'Spears'},shield:{n:'Shield',p:'Shields'},hammer:{n:'Warhammer',p:'Warhammers'}};
 // stations: the Blacksmith level that teaches the weapon (Jonathan: Axes 25, Spears 50), its smith, and the art layer
 const STATIONS=[{lv:25,k:'axesmith',w:'axe'},{lv:50,k:'spearwright',w:'spear'},{lv:75,k:'shieldwright',w:'shield'},{lv:100,k:'hammersmith',w:'hammer'}];
-const known=()=>['sword',...STATIONS.filter(st=>lv('smith')>=st.lv).map(st=>st.w)];
+const SWORD_LV=5; // Jonathan: you can't forge anything until the Blacksmith learns Swords at level 5
+const known=()=>[...(lv('smith')>=SWORD_LV?['sword']:[]),...STATIONS.filter(st=>lv('smith')>=st.lv).map(st=>st.w)];
 // Folds (Jonathan's name for slams): blanks start at 3, +1 every 5 Blacksmith levels, no ceiling; Copper holds 10
 const MATCAP=10,BLANK=150,INGOT=50;
 const maxFolds=()=>3+Math.floor(lv('smith')/5);
@@ -188,7 +208,7 @@ const SMITH_GLOW=[5,20,40],SMITH_SLOW=[10,30,50];
 const zoneW=()=>14+5*SMITH_GLOW.filter(n=>lv('smith')>=n).length;
 const smithSlow=()=>1-0.07*SMITH_SLOW.filter(n=>lv('smith')>=n).length;
 const ingotRate=()=>lv('smelter')?0.05*lv('smelter')*mult('smelter'):0; // ingots a second
-function smithMs(L){const ev=[];for(let l=L+1;l<=L+40&&!ev.length;l++){const st=STATIONS.find(s=>s.lv===l);
+function smithMs(L){const ev=[];for(let l=L+1;l<=L+40&&!ev.length;l++){const st=STATIONS.find(s=>s.lv===l);if(l===SWORD_LV)ev.push('learns Swords');
   if(l%5===0)ev.push(`+1 Fold`);if(SMITH_GLOW.includes(l))ev.push('a wider glow');if(SMITH_SLOW.includes(l))ev.push('a slower marker');if(st)ev.push(`learns ${WEAP[st.w].p}`);if(ev.length)return `Level ${l}: ${ev.join(', ')}`}return ''}
 // grades by stars, the same 20 as Blacksmith Battles
 const GR=[['Crude',0],['Fine',4],['Superior',7],['Masterwork',11],['Exalted',15],['Heroic',20],['Mythic',28],['Legendary',38],['Fabled',50],['Runebound',65],
@@ -289,21 +309,30 @@ function tap(){if(S.view==='forge')return F?strike():heat();S.taps++;if(!hintGon
 
 /* ---------- the forge: Blacksmith Battles' forging minigame ---------- */
 const ANVIL={pop:[304,82],hit:[262,112]};
-// the forging bar, drawn over the bottom of the forge scene (canvas pixels)
-const BAR={x:40,y:186,w:400,h:12};
+
 let F=null,fhintGone=false;
-function heat(){if(F)return;const n=Math.min(S.pick.n,foldLimit()),c=blankCost(n),fromIng=Math.min(Math.floor(S.ingots),Math.floor(c/INGOT)),ore=c-fromIng*INGOT;
+function heat(){if(F)return;if(!known().length){toast(`The Blacksmith learns Swords at level ${SWORD_LV}. Level him up first.`);return}const n=Math.min(S.pick.n,foldLimit()),c=blankCost(n),fromIng=Math.min(Math.floor(S.ingots),Math.floor(c/INGOT)),ore=c-fromIng*INGOT;
   if(S.ore<ore){toast(`A ${n}-Fold blank needs ${fmtN(ore)} ore${fromIng?` (after ${fmtN(fromIng)} ingots)`:''}. Dig in the Mine.`);return}
-  S.ingots-=fromIng;S.ore-=ore;F={w:S.pick.w,n,res:[],pos:0,dir:1,speed:62,zl:0,last:0,done:false,msg:'Strike when the marker crosses the glow',msgT:0};placeZone();
+  S.ingots-=fromIng;S.ore-=ore;F={w:S.pick.w,n,res:[],pos:0,dir:1,speed:62,zl:0,last:0,done:false,msg:'Strike in the glow',msgT:0};placeZone();
   if(!fhintGone){fhintGone=true;$('#taphint').style.opacity=0}refreshForge()}
 function placeZone(){F.zl=8+Math.random()*(84-zoneW())}
-function forgeTick(dt){if(!F||F.done)return;F.pos+=F.dir*F.speed*smithSlow()*dt;if(F.pos>100){F.pos=100;F.dir=-1}if(F.pos<0){F.pos=0;F.dir=1}}
+function forgeTick(dt){if(!F||F.done)return;F.pos+=F.dir*F.speed*smithSlow()*dt;if(F.pos>100){F.pos=100;F.dir=-1}if(F.pos<0){F.pos=0;F.dir=1}const m=$('#marker');if(m)m.style.left=F.pos+'%'}
+function sparks(p,n){const box=$('#sparks');for(let i=0;i<n;i++){const e=document.createElement('span');e.className='spark';e.style.left=p+'%';e.style.top='50%';e.style.setProperty('--dx',(Math.random()*120-60)+'px');e.style.setProperty('--dy',(Math.random()*-50-10)+'px');box.appendChild(e);setTimeout(()=>e.remove(),520)}}
+function trackShake(){const t=$('#track');t.classList.remove('forge-shake');void t.offsetWidth;t.classList.add('forge-shake')}
+// the Folds: one long row of pips. Struck ones slide off to the left once three are done, and new ones slide in from the right
+function drawTrack(){const on=S.forge&&S.view==='forge';$('#ftrack').style.display=on?'':'none';if(!on)return;
+  const t=$('#track');t.classList.toggle('idle',!F);$('#zone').style.width=zoneW()+'%';if(F)$('#zone').style.left=F.zl+'%';$('#marker').style.left=(F?F.pos:50)+'%';
+  const n=F?F.n:Math.min(S.pick.n,foldLimit()),res=F?F.res:[];let st=0,h='';
+  for(let i=0;i<n;i++){const r=res[i];if(r==='P')st++;else st=0;h+=`<span class="pip ${r==='P'?'p':r==='G'?'g':r?'m':''}${F&&i===res.length&&!F.done?' now':''}">${r==='P'?perfectStars(st):r==='G'?'1':r?'✕':i+1}</span>`}
+  const row=$('#fpips');row.innerHTML=h;row.style.transform=`translateX(${-Math.max(0,res.length-3)*38}px)`;
+  const ks=known(),c=blankCost(n),ing=Math.min(Math.floor(S.ingots),Math.floor(c/INGOT)),ore=c-ing*INGOT;
+  $('#tlabel').textContent=F?'':!ks.length?`The Blacksmith learns Swords at level ${SWORD_LV}`:S.ore<ore?`Need ${fmtN(ore)} ore. Dig in the Mine.`:`Tap to heat a ${n}-Fold ${WEAP[S.pick.w].n} blank (${fmtN(ore)} ore)`;
+  const sc=F?scoreOf(F.res):0;$('#callout').innerHTML=F?`<span>${F.msg}</span><b>★${sc} ${GR[gradeOf(sc)].n}</b>`:`<span>${lastResult}</span>`}
 function strike(){if(!F||F.done)return;const now=performance.now(),w=zoneW(),p=F.pos;let r;
   if(F.last&&now-F.last<280)r='O';else if(p>=F.zl+w*.3&&p<=F.zl+w*.7)r='P';else if(p>=F.zl&&p<=F.zl+w)r='G';else r='M';
   F.last=now;F.res.push(r);let streak=0;for(let i=F.res.length-1;i>=0&&F.res[i]==='P';i--)streak++;
   F.msg={P:streak>4?`Perfect ×${streak}! +${perfectStars(streak)} stars`:'Perfect!',G:'Good',M:'Miss',O:'Too fast: overheated!'}[r];F.msgT=0;
-  const bx=BAR.x+BAR.w*p/100;
-  if(r==='P'||r==='G'){A.smith.play('strike',['recover']);burst(ANVIL.hit,r==='P'?16:7,['#fff2c0','#ffd060','#ff9a30'],r==='P'?1.3:.8,'forge');burst([bx,BAR.y],r==='P'?8:4,['#fff2c0','#ffd060'],.5,'forge');if(r==='P')shake=.12}
+  if(r==='P'||r==='G'){A.smith.play('strike',['recover']);burst(ANVIL.hit,r==='P'?16:7,['#fff2c0','#ffd060','#ff9a30'],r==='P'?1.3:.8,'forge');sparks(p,r==='P'?14:7);trackShake();if(r==='P')shake=.12}
   else{A.smith.play('strike',['recover']);burst(ANVIL.hit,8,['#584738','#42352b','#725d4a'],.5,'forge')}
   if(r==='M'||r==='O'){F.done=true;F.msg+=` −${missLoss(scoreOf(F.res))} stars, and the blank is done`;setTimeout(finishForge,700);refreshForge();return}
   if(F.res.length>=F.n){F.done=true;setTimeout(finishForge,r==='P'?380:260);refreshForge();return}
@@ -405,20 +434,9 @@ function drawForge(dt){
   A.smith.draw();
   if(F)glow(ANVIL.hit[0],ANVIL.hit[1]+2,10+2*Math.sin(clock*6),'255,120,40',.45); // the hot blank
   if(A.smith.seg==='strike'||(A.smith.seg==='recover'&&A.smith.t<.08))glow(ANVIL.hit[0],ANVIL.hit[1],14,'255,200,120',.5);
-  if(F)drawBar(dt);
   drawFx(dt);ctx.restore();
 }
 const hexRgb=h=>[1,3,5].map(i=>parseInt(h.slice(i,i+2),16)).join(',');
-// the forging bar: the glow (Good) with its bright core (Perfect), the marker, and a pip per Fold
-function drawBar(dt){const {x,y,w,h}=BAR;ctx.fillStyle='rgba(10,8,6,.82)';ctx.fillRect(x-6,y-16,w+12,h+22);
-  ctx.fillStyle='#2a221c';ctx.fillRect(x,y,w,h);const zw=zoneW()/100*w,zx=x+F.zl/100*w;
-  const g=ctx.createLinearGradient(zx,0,zx+zw,0);g.addColorStop(0,'rgba(255,138,61,.35)');g.addColorStop(.3,'rgba(255,170,80,.75)');g.addColorStop(.5,'rgba(255,230,160,.95)');g.addColorStop(.7,'rgba(255,170,80,.75)');g.addColorStop(1,'rgba(255,138,61,.35)');
-  ctx.fillStyle=g;ctx.fillRect(Math.round(zx),y,Math.round(zw),h);ctx.fillStyle='rgba(255,250,220,.9)';ctx.fillRect(Math.round(zx+zw*.3),y,1,h);ctx.fillRect(Math.round(zx+zw*.7),y,1,h);
-  const mx=Math.round(x+F.pos/100*w);ctx.fillStyle='#fff';ctx.fillRect(mx-1,y-3,3,h+6);
-  // pips: one per Fold, filled as you strike
-  for(let i=0;i<F.n;i++){const r=F.res[i],px=x+i*12,py=y-12;ctx.fillStyle=r==='P'?'#ffd060':r==='G'?'#c8b8a4':r?'#a82a1c':'#3b3029';ctx.fillRect(px,py,9,7)}
-  const sc=scoreOf(F.res);ctx.font='bold 9px Inter,sans-serif';ctx.textAlign='right';ctx.fillStyle='#ffd060';ctx.fillText(`★${sc} ${GR[gradeOf(sc)].n}`,x+w,y-5);
-  F.msgT+=dt;ctx.textAlign='center';ctx.font='bold 10px Inter,sans-serif';ctx.globalAlpha=Math.max(.35,1-F.msgT*.6);ctx.fillStyle='#120e0b';ctx.fillText(F.msg,241,y-21);ctx.fillStyle='#fff2c0';ctx.fillText(F.msg,240,y-22);ctx.globalAlpha=1}
 /* ---------- hero cards ---------- */
 const PIC={smith:['smith-idle-0'],smelter:['smelter-idle-0'],axesmith:['axe-idle-0'],spearwright:['spear-idle-0'],shieldwright:['shield-idle-0'],hammersmith:['hammer-idle-0'],miner:['miner-idle-0',0,0,34],carter:['cart-out-16',0,0,30],phantom:['phantom-strike-4',0,0,40],prospector:['pros-idle-0',0,0,40],foreman:['boss-idle-0',0,0,26],blaster:['blast-idle-0',0,0,40],lamp:['lamp-idle-0',0,0,24],time:['time-idle-0',0,0,26]};
 function portrait(h){const c=document.createElement('canvas');c.width=44;c.height=56;const x=c.getContext('2d');x.imageSmoothingEnabled=false;
@@ -440,6 +458,7 @@ function refreshCards(){let shownLocked=false;
 function buy(k){const L=lv(k),n=1,c=costN(k,n);if(S.ore<c)return;S.ore-=c;const before=msCount(L);S.h[k]=L+n;
   const st=k==='smith'&&STATIONS.find(x=>x.lv===L+n);
   if(!L)toast(`The ${HK[k].n} got to work`);
+  else if(k==='smith'&&L+n===SWORD_LV){toast('You learned Swords! Heat your first blank.');refreshForge()}
   else if(st)toast(`You learned ${WEAP[st.w].p}! The ${WEAP[st.w].n} station is open`);
   else if(!HK[k].noMs&&msCount(L+n)>before)toast(`${HK[k].n} reached level ${S.h[k]}: double output!`);
   save();refreshCards()}
@@ -447,20 +466,22 @@ function buy(k){const L=lv(k),n=1,c=costN(k,n);if(S.ore<c)return;S.ore-=c;const 
 /* ---------- ui ---------- */
 let toastT=0;function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),2600)}
 $('#scene').addEventListener('pointerdown',e=>{e.preventDefault();tap()});
+$('#track').addEventListener('pointerdown',e=>{e.preventDefault();tap()});
 // iPhone: fast taps must never zoom the page (double-tap zoom and pinch)
 for(const ev of ['gesturestart','gesturechange','gestureend','dblclick'])document.addEventListener(ev,e=>e.preventDefault(),{passive:false});
 document.addEventListener('keydown',e=>{if(e.code==='Space'&&S.view==='forge'){e.preventDefault();tap()}});
 $('#cards').addEventListener('click',e=>{const b=e.target.closest('[data-buy]');if(b)buy(b.dataset.buy)});
-function refreshForge(){const on=S.forge&&S.view==='forge';$('#fpanel').style.display=on?'':'none';if(!on)return;
+function refreshForge(){drawTrack();const on=S.forge&&S.view==='forge';$('#fpanel').style.display=on?'':'none';if(!on)return;
+  if(!known().length){$('#wpick').innerHTML='<span class="note">No recipes yet. The Blacksmith learns Swords at level '+SWORD_LV+'.</span>'}
   const ks=known();if(!ks.includes(S.pick.w))S.pick.w='sword';S.pick.n=Math.max(1,Math.min(S.pick.n,foldLimit()));
-  $('#wpick').innerHTML=ks.map(w=>`<button class="b sm${w===S.pick.w?' on':''}" data-w="${w}" ${F?'disabled':''}>${WEAP[w].n}</button>`).join('');
+  if(ks.length)$('#wpick').innerHTML=ks.map(w=>`<button class="b sm${w===S.pick.w?' on':''}" data-w="${w}" ${F?'disabled':''}>${WEAP[w].n}</button>`).join('');
   const n=S.pick.n,c=blankCost(n),ing=Math.min(Math.floor(S.ingots),Math.floor(c/INGOT)),ore=c-ing*INGOT;
   $('#fsize').textContent=`${n} Fold${n>1?'s':''}`;$('#fminus').disabled=!!F||n<=1;$('#fplus').disabled=!!F||n>=foldLimit();
   $('#fcost').textContent=`${fmtN(ore)} ore${ing?` + ${fmtN(ing)} ingots`:''} · best ★${maxStars(n)} ${GR[gradeOf(maxStars(n))].n}`;
-  $('#fheat').style.display=F?'none':'';$('#fheat').disabled=S.ore<ore;$('#fheat').textContent=S.ore<ore?`Need ${fmtN(ore)} ore`:'Heat blank';
+  $('#fheat').style.display=F?'none':'';$('#fheat').disabled=S.ore<ore||!ks.length;$('#fheat').textContent=S.ore<ore?`Need ${fmtN(ore)} ore`:'Heat blank';
   $('#fquench').style.display=F&&!F.done&&F.res.length?'':'none';
-  const b=S.best[S.pick.w];$('#fbest').textContent=F?'Tap the scene to strike':b?`Best ${WEAP[S.pick.w].n}: ${GR[b.g].n} ★${b.stars}`:'';
-  $('#fstock').textContent=`${S.forged} forged${S.ingots>=1?` · ${fmtN(Math.floor(S.ingots))} ingots`:''}`;$('#fresult').textContent=lastResult}
+  const b=S.best[S.pick.w];$('#fbest').textContent=F?'Tap the bar or the scene to strike':b?`Best ${WEAP[S.pick.w].n}: ${GR[b.g].n} ★${b.stars}`:'';
+  $('#fstock').textContent=`${S.forged} forged${S.ingots>=1?` · ${fmtN(Math.floor(S.ingots))} ingots`:''}`}
 $('#fpanel').addEventListener('click',e=>{const t=e.target.closest('button');if(!t)return;
   if(t.dataset.w&&!F){S.pick.w=t.dataset.w}else if(t.id==='fminus'&&!F)S.pick.n--;else if(t.id==='fplus'&&!F)S.pick.n++;else if(t.id==='fheat')heat();else if(t.id==='fquench')quench();refreshForge();save()});
 function setPlaces(){$('#places').classList.toggle('on',!!S.forge);$('#res').classList.toggle('three',!!S.forge);$('#wchip').style.display=S.forge?'':'none';
