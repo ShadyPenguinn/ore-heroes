@@ -42,7 +42,7 @@ if (WHICH === 'mine') {
 } else {
   // art/src/forge.js: the Blacksmith and the five smiths swing like the mine's picks; the fire loops
   clips({
-    smith: SWING, sword: SWING, axe: SWING, spear: SWING, shield: SWING, hammer: SWING,
+    smith: SWING, sword: { idle: steps(0, 2, 24), study: steps(2, 4, 20) }, axe: SWING, spear: SWING, shield: SWING, hammer: SWING,
     fire: { idle: steps(0, 1, 12) }
   });
   for (const k of ['st-sword', 'st-axe', 'st-spear', 'st-shield', 'st-hammer', 'w-sword', 'w-axe', 'w-spear', 'w-shield', 'w-hammer'])

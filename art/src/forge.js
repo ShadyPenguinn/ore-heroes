@@ -4,7 +4,8 @@
 // OH_LAYER picks what is drawn (none = the empty hall, the background):
 //   smith            you, the Blacksmith, at the anvil (clip: ready 0-1, strike 1-1.12, recover 1.12-1.5)
 //   st-sword|st-axe|st-spear|st-shield|st-hammer   a station's bench and little anvil (drawn once the Blacksmith learns that weapon)
-//   sword|axe|spear|shield|hammer               the smith who works that station (same clip as the Blacksmith)
+//   sword            the Swordsmith at his table (clip: hone 0-2, study 2-4)
+//   axe|spear|shield|hammer               the smith who works that station (same clip as the Blacksmith)
 //   w-sword|w-axe|w-spear|w-shield|w-hammer  one finished weapon hanging in its column of the rack
 //   fire             the furnace flames (clip: a 0-1 loop)
 module.exports = ({ makeBuilder, makeSculpt, KIT: K }) => {
@@ -217,6 +218,47 @@ module.exports = ({ makeBuilder, makeSculpt, KIT: K }) => {
       pose = swingPose(1);
     }
 
+    // ---- the Swordsmith studies swords rather than hammering: a work table with a blade, an open book and a whetstone.
+    // clip: idle 0-2 (hones the blade, two long strokes), study 2-4 (straightens up and turns to read his book, then back)
+    function swordsmith(st, P, anv) {
+      const top = 0.62, T = [anv[0] + 0.05, 0, anv[2]];
+      if (layer === 'st-sword') {
+        S.box([T[0], top - 0.03, T[2]], [0.24, 0.03, 0.42], WOOD, { res: 0.015 }); // the table top
+        for (const dx of [-0.19, 0.19]) for (const dz of [-0.36, 0.36]) S.box([T[0] + dx, (top - 0.06) / 2, T[2] + dz], [0.025, (top - 0.06) / 2, 0.025], WOOD, { res: 0.012 });
+        weapon('sword', [T[0] - 0.04, top + 0.012, T[2] + 0.08], { lay: true }); // the blade he's honing
+        // an open book at the far end
+        S.box([T[0] + 0.02, top + 0.012, T[2] - 0.3], [0.1, 0.012, 0.075], { r: [49, 50, 51] }, { res: 0.008 });
+        S.box([T[0] + 0.02, top + 0.006, T[2] - 0.3], [0.11, 0.008, 0.085], { r: [39, 40] }, { res: 0.008 });
+        // a finished blade leaning on the wall behind him
+        for (const dz of [-0.05]) {
+          const x = st.x - 0.32, z = st.z + dz;
+          S.box([x, 0.42, z], [0.012, 0.36, 0.022], STEEL, { res: 0.008 });
+          S.box([x, 0.8, z], [0.02, 0.02, 0.08], BRASS, { res: 0.008 });
+          S.box([x, 0.9, z], [0.02, 0.08, 0.03], WOOD, { res: 0.008 });
+        }
+      }
+      if (layer === 'sword') {
+        person(P, { coat: st.coat, apron: { r: [7, 8] } });
+        S.ball(P(0, 1.26, 0), [0.11, 0.06, 0.11], { r: [8, 9] }, { tag: 'body', res: 0.01 });
+        const SH = P(0.12, 1.0, 0), HAND = P(0.02, 0.7, 0.42);
+        S.tube([SH, HAND], 0.035, 0.035, st.coat, { tag: 'arm', res: 0.012 });
+        S.box([HAND[0], top + 0.04, HAND[2]], [0.06, 0.025, 0.035], { r: [3, 4, 5] }, { tag: 'arm', res: 0.008 }); // the whetstone
+        parts.body = { pivot: P(0, 0.2, 0), slices: 3 };
+        parts.arm = { pivot: SH, parent: 'body', slices: 2 };
+        pose = (t, dt, pup) => {
+          if (t < 2) { // honing: the stone sweeps along the blade and back, twice
+            const a = Math.sin(t * Math.PI * 2);
+            pup.pose.arm = { rot: [0, 22 * a, 0] };
+            pup.pose.body = { rot: [0, 4 * a, -6] };
+          } else { // studying: straighten up and turn toward the book, read, then back to the blade
+            const k = t - 2, e = k < 0.5 ? ease(k / 0.5) : k < 1.5 ? 1 : 1 - ease((k - 1.5) / 0.5);
+            pup.pose.arm = { rot: [0, -10 * e, 0] };
+            pup.pose.body = { rot: [0, 28 * e + 2 * Math.sin(k * 6) * (k > 0.5 && k < 1.5 ? 1 : 0), -6 * (1 - e)] };
+          }
+        };
+      }
+    }
+
     // ---- the five stations and their smiths (the Swordsmith stands where the Smelter used to) ----
     const ST = {
       sword:  { x: -2.35, z: -2.0, dir: 1, coat: { r: [42, 43, 44] }, hat: 'leather' },
@@ -227,6 +269,7 @@ module.exports = ({ makeBuilder, makeSculpt, KIT: K }) => {
     };
     for (const [k, st] of Object.entries(ST)) {
       const P = facing(st.x, st.z, st.dir), anv = P(0, 0, 0.55), top = 0.61;
+      if (k === 'sword') { swordsmith(st, P, anv); continue; }
       if (layer === 'st-' + k) {
         smallAnvil(anv);
         weapon(k, [anv[0], top + 0.012, anv[2]], { lay: true, mat: IRON });
