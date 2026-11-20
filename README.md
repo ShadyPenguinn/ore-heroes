@@ -20,7 +20,7 @@ Levels cost ore (base x 1.15 per level). Levels 10, 25, 50, 100 and every 50 aft
 Hiring the Foreman opens the forge (he keeps the Miner swinging while you smith); switch with the Mine / Forge buttons. Forging is Blacksmith Battles' minigame: pick a weapon and a blank size in Folds (a 3-Fold Copper blank is 150 ore, each Fold doubles it), heat it, and strike while the marker crosses the glow. Perfect is 2 stars, Good 1, and from the 5th Perfect in a row each is worth one more. A miss ends the blank and costs a third of your stars; Quench banks the score early. Stars set the grade (Crude, Fine, Superior, Masterwork, Exalted... 20 grades). Your best weapon of each kind hangs on the rack.
 
 - **Blacksmith** (you): +1 Fold every 5 levels (Copper holds 10); levels 5/20/40 widen the glow and 10/30/50 slow the marker; Axes at 25, Spears at 50, Shields at 75, Warhammers at 100
-- **Smelter**: pours ingots (50 ore each) that blanks use before ore
+- **Swordsmith** (Blacksmith 5): every Sword you forge gets +3% Might and Haste per level, locked in. Blanks are paid in ore only (no ingots)
 - **Axesmith, Spearwright, Shieldwright, Hammersmith**: +3% to their weapon's two signature stats per level, locked in when you forge it; they finish your weapon at their station
 
 The game keeps its own save (`ore-heroes-v1`) and offline cache, fully separate from Blacksmith Battles.

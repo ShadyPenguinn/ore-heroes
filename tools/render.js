@@ -40,13 +40,12 @@ if (WHICH === 'mine') {
   for (const dir of ['out', 'in'])
     CART_Z.forEach((z, i) => { const n = `cart-${dir}-${i}`; layout.cart[dir].push(n); jobs.push({ name: n, env: { OH_LAYER: 'cart', OH_DIR: dir, OH_Z: String(z) }, t: (i % 4) * 0.25 }); });
 } else {
-  // art/src/forge.js: the Blacksmith and the four smiths swing like the mine's picks; the Smelter pours; the fire loops
+  // art/src/forge.js: the Blacksmith and the five smiths swing like the mine's picks; the fire loops
   clips({
-    smith: SWING, axe: SWING, spear: SWING, shield: SWING, hammer: SWING,
-    smelter: { idle: steps(0, 1, 12), pour: steps(1, 2, 14) },
+    smith: SWING, sword: SWING, axe: SWING, spear: SWING, shield: SWING, hammer: SWING,
     fire: { idle: steps(0, 1, 12) }
   });
-  for (const k of ['st-axe', 'st-spear', 'st-shield', 'st-hammer', 'w-sword', 'w-axe', 'w-spear', 'w-shield', 'w-hammer', 'ingot'])
+  for (const k of ['st-sword', 'st-axe', 'st-spear', 'st-shield', 'st-hammer', 'w-sword', 'w-axe', 'w-spear', 'w-shield', 'w-hammer'])
     jobs.push({ name: k, env: { OH_LAYER: k }, t: 0 });
 }
 fs.mkdirSync(OUT, { recursive: true });
