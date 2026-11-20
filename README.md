@@ -17,11 +17,11 @@ Levels cost ore (base x 1.15 per level). Levels 10, 25, 50, 100 and every 50 aft
 
 ## The Forge
 
-When the Lamplighter arrives, a forge opens beyond the mine (switch with the Mine / Forge buttons). You are the Blacksmith: every tap on the anvil is a hammer blow, and every 10 work makes a Sword. A weapon uses an ingot if there is one, otherwise a blank of ore (1M). Finished weapons hang on the rack, ready for the army and the market later.
+Hiring the Foreman opens the forge (he keeps the Miner swinging while you smith); switch with the Mine / Forge buttons. Forging is Blacksmith Battles' minigame: pick a weapon and a blank size in Folds (a 3-Fold Copper blank is 150 ore, each Fold doubles it), heat it, and strike while the marker crosses the glow. Perfect is 2 stars, Good 1, and from the 5th Perfect in a row each is worth one more. A miss ends the blank and costs a third of your stars; Quench banks the score early. Stars set the grade (Crude, Fine, Superior, Masterwork, Exalted... 20 grades). Your best weapon of each kind hangs on the rack.
 
-- **Blacksmith** (you): more work per blow. Levels 10, 25, 50 and 75 teach Axes, Spears, Shields and Warhammers, each opening that weapon's station
-- **Smelter**: pours ingots from the crucible into the mould
-- **Axesmith, Spearwright, Shieldwright, Hammersmith**: each works their own station and forges from ingots only (they wait when the ingots run out)
+- **Blacksmith** (you): +1 Fold every 5 levels (Copper holds 10); levels 5/20/40 widen the glow and 10/30/50 slow the marker; Axes at 25, Spears at 50, Shields at 75, Warhammers at 100
+- **Smelter**: pours ingots (50 ore each) that blanks use before ore
+- **Axesmith, Spearwright, Shieldwright, Hammersmith**: +3% to their weapon's two signature stats per level, locked in when you forge it; they finish your weapon at their station
 
 The game keeps its own save (`ore-heroes-v1`) and offline cache, fully separate from Blacksmith Battles.
 
