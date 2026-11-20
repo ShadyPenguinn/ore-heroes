@@ -1,5 +1,5 @@
 // Ore Heroes: the mine, forked from Blacksmith Battles' splat/art/toy-mine.js (same cave, same lights, same miner).
-// A cut-away cavern: a rock dome, timber frames with hanging lanterns, a tunnel mouth with rails, puddles, a copper vein.
+// A cut-away cavern: a rock dome, timber frames with hanging lanterns, a tunnel mouth with rails, a copper vein.
 // Each mine hero is its own layer, picked with OH_LAYER (miner, boss, pros, cart, phantom, blast, lamp, time; none = the empty cave).
 // The ore cart is no longer scenery: it is the Carter's, drawn at OH_Z along the rails, rolling OH_DIR (in = empty, out = full);
 // OH_NOBODY=1 draws it empty and parked, with no Carter, for before he is hired.
@@ -102,13 +102,6 @@ module.exports = ({ makeBuilder, makeSculpt, KIT: K }) => {
       const a = 0.45 + 0.07 * i, y = 0.9 + 0.3 * i + 0.15 * Math.sin(i * 2.3);
       const rr = RI * Math.sqrt(Math.max(0.02, 1 - Math.pow(y / (H - 0.5), 2.2))) - 0.02;
       S.rock([Math.sin(a) * rr, y, -Math.cos(a) * rr], 0.16 + 0.06 * K.hash(i, 9), ORE, { res: 0.03 });
-    }
-
-    // ---- puddles on the floor: flat water with a pale glint ----
-    for (const [x, z, rx, rz] of [[2.6, 1.7, 0.55, 0.3], [-2.4, 0.9, 0.42, 0.26], [0.3, 1.9, 0.32, 0.18], [-1.7, 2.5, 0.5, 0.22], [0.9, -1.9, 0.35, 0.2]]) {
-      S.lathe([x, 0, z], 0.03, rx, { r: [14, 15, 16] }, { res: 0.025 });
-      S.lathe([x + rz * 0.6, 0, z - rz * 0.4], 0.03, rz * 0.9, { r: [14, 15, 16] }, { res: 0.025 });
-      S.box([x + rx * 0.2, 0.035, z - rz * 0.2], [rx * 0.3, 0.006, 0.012], { r: [17] }, { res: 0.012 }); // glint
     }
 
     // a lantern on a post beside the boulder, so the miner works in its pool of light
