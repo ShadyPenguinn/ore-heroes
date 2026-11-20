@@ -1,12 +1,13 @@
 """Packs the frames from render.js into art/mine.png (one atlas) and art/mine.json (where each sprite is).
 Every frame is stored as just the pixels that differ from the empty cave (bg), cropped to their box, so the whole
-scene is one background plus small cut-outs. Usage: python3 tools/pack.py"""
-import json, os
+scene is one background plus small cut-outs. Usage: python3 tools/pack.py mine|forge"""
+import json, os, sys
 import numpy as np
 from PIL import Image
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-FR = os.path.join(HERE, 'frames')
+WHICH = sys.argv[1] if len(sys.argv) > 1 else 'mine'
+FR = os.path.join(HERE, 'frames', WHICH)
 OUT = os.path.join(HERE, '..', 'art')
 meta = json.load(open(os.path.join(FR, 'jobs.json')))
 PX = 2
@@ -50,9 +51,9 @@ for n, (img, ox, oy) in items:
 im = Image.fromarray(atlas, 'RGBA')
 q = im.quantize(colors=255, method=Image.FASTOCTREE)
 if (np.asarray(q.convert('RGBA'))[..., 3] == atlas[..., 3]).all():
-    q.save(os.path.join(OUT, 'mine.png'), optimize=True)
+    q.save(os.path.join(OUT, WHICH + '.png'), optimize=True)
 else:
-    im.save(os.path.join(OUT, 'mine.png'), optimize=True)
-out = {'w': W, 'h': H, 'sprites': {n: list(map(int, v)) for n, v in place.items()}, 'heroes': meta['heroes'], 'cart': meta['cart']}
-json.dump(out, open(os.path.join(OUT, 'mine.json'), 'w'), separators=(',', ':'))
-print('mine', W, H, 'atlas', AW, AH, 'sprites', len(place), 'png', os.path.getsize(os.path.join(OUT, 'mine.png')))
+    im.save(os.path.join(OUT, WHICH + '.png'), optimize=True)
+out = {'w': W, 'h': H, 'sprites': {n: list(map(int, v)) for n, v in place.items()}, 'heroes': meta['heroes'], **({'cart': meta['cart']} if 'cart' in meta else {})}
+json.dump(out, open(os.path.join(OUT, WHICH + '.json'), 'w'), separators=(',', ':'))
+print(WHICH, W, H, 'atlas', AW, AH, 'sprites', len(place), 'png', os.path.getsize(os.path.join(OUT, WHICH + '.png')))
