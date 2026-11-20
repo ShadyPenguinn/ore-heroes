@@ -142,7 +142,10 @@ const tapOre=()=>minerTap()+prospTap();
 const timeSpeed=()=>1+0.03*lv('time')*mult('time');
 const carterRate=()=>0.6*lv('carter')*mult('carter')*lampBoost()*timeSpeed();
 const phantomRate=()=>0.4*lv('phantom')*mult('phantom')*minerTap()*timeSpeed();
-const blasterRate=()=>60*lv('blaster')*mult('blaster')*lampBoost()*timeSpeed();
+// Blaster (buffed Nov 19): each blast is a flat charge PLUS half a full tap (Miner + Prospector) per level, so he keeps
+// pace with your tapping instead of falling 100x behind the Prospector. Ore per second = per blast / BLAST.
+const blastOre=()=>lv('blaster')*mult('blaster')*(1200*lampBoost()+0.5*tapOre());
+const blasterRate=()=>blastOre()/BLAST*timeSpeed();
 // Foreman calls per second: 1 every 10 s at level 1, 8% more often every level, doubled at milestones. No ceiling.
 const foremanCalls=()=>lv('foreman')?0.1*Math.pow(1.08,lv('foreman')-1)*mult('foreman')*timeSpeed():0;
 const foremanText=()=>{const c=foremanCalls();return c<1?`once every ${Math.round(10/c*10)/10} s`:`${fmtN(c)} swings a second`};
