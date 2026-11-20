@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Ore Heroes</title>
 <meta name="theme-color" content="#15120f">
 <link rel="manifest" href="manifest.webmanifest">
@@ -24,7 +24,8 @@
   color-scheme:dark;
 }
 *{box-sizing:border-box}
-html,body{background:var(--bg);color:var(--fg);margin:0}
+html,body{background:var(--bg);color:var(--fg);margin:0;touch-action:manipulation;-webkit-text-size-adjust:100%}
+button,.card,.scene{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 body{font-family:var(--body);font-size:14px;line-height:1.45;padding:0 max(16px,env(safe-area-inset-right,0px)) calc(40px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
 .wrap{max-width:640px;margin:0 auto;display:flex;flex-direction:column;gap:12px}
 .hud{position:sticky;top:0;z-index:5;background:var(--bg);padding-top:max(8px,env(safe-area-inset-top,0px));padding-bottom:8px;box-shadow:0 10px 14px -8px rgba(0,0,0,.6)}
@@ -292,6 +293,8 @@ function buy(k){const L=lv(k),n=1,c=costN(k,n);if(S.ore<c)return;S.ore-=c;const 
 /* ---------- ui ---------- */
 let toastT=0;function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),2600)}
 $('#scene').addEventListener('pointerdown',e=>{e.preventDefault();tap()});
+// iPhone: fast taps must never zoom the page (double-tap zoom and pinch)
+for(const ev of ['gesturestart','gesturechange','gestureend','dblclick'])document.addEventListener(ev,e=>e.preventDefault(),{passive:false});
 $('#cards').addEventListener('click',e=>{const b=e.target.closest('[data-buy]');if(b)buy(b.dataset.buy)});
 let resetArm=false;
 $('#reset').onclick=()=>{if(!resetArm){resetArm=true;$('#reset').textContent='Tap again to erase this save';setTimeout(()=>{resetArm=false;$('#reset').textContent='Start over'},3000);return}S=fresh();save();buildCards();toast('A fresh mine')};
