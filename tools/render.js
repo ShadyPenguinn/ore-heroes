@@ -1,7 +1,7 @@
 // Renders every frame of the mine with ink-studio, into tools/frames/ (not committed); then `python3 tools/pack.py` packs
 // them into art/mine.png + art/mine.json. Ink-studio lives in the Blacksmith Battles repo (forge-splat-test/addons/splats/
 // tools/ink-studio); point INK_STUDIO at its cli/ink-studio.js, or keep a blacksmith-battles clone next to this repo.
-// Usage: node tools/render.js mine|forge|army   (then python3 tools/pack.py mine|forge|army)
+// Usage: node tools/render.js mine|forge|army|explore   (then python3 tools/pack.py the same)
 const { spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
@@ -44,6 +44,12 @@ if (WHICH === 'mine') {
   const H = {};
   for (const w of ['none', 'sword', 'axe', 'spear', 'shield', 'hammer']) H['hero-' + w] = { idle: steps(0, 1, 8) };
   clips({ ...H, fire: { idle: steps(0, 1, 12) } });
+} else if (WHICH === 'explore') {
+  // art/src/explore.js: your heroes facing right, the cave ghouls and the Warden facing left; idle, a swing, and a fall
+  const H = {}, FIGHT = { idle: steps(0, 1, 8), hit: steps(1, 1.4, 6).concat([1.4]), fall: steps(2, 2.6, 6).concat([2.6]) };
+  for (const w of ['sword', 'axe', 'spear', 'shield', 'hammer']) { H['u-' + w] = FIGHT; H['e-' + w] = FIGHT; }
+  for (const w of ['sword', 'axe', 'spear', 'hammer']) H['w-' + w] = FIGHT;
+  clips(H);
 } else {
   // art/src/forge.js: the Blacksmith and the five smiths swing like the mine's picks; the fire loops
   clips({

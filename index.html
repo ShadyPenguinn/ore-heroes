@@ -31,7 +31,7 @@ body{font-family:var(--body);font-size:14px;line-height:1.45;padding:0 max(16px,
 .hud{position:sticky;top:0;z-index:5;background:var(--bg);padding-top:max(8px,env(safe-area-inset-top,0px));padding-bottom:8px;box-shadow:0 10px 14px -8px rgba(0,0,0,.6)}
 .res{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px}
 .res.three{grid-template-columns:1fr 1fr 1fr}
-.places{display:none;gap:6px;margin-bottom:8px}.places.on{display:grid;grid-template-columns:1fr 1fr}.places.three{grid-template-columns:1fr 1fr 1fr}
+.places{display:none;gap:6px;margin-bottom:8px}.places.on{display:grid;grid-template-columns:1fr 1fr}.places.three{grid-template-columns:1fr 1fr 1fr}.places.four{grid-template-columns:1fr 1fr 1fr 1fr}
 .places .b{min-height:34px;font-family:var(--display);letter-spacing:.06em}
 .chip{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:4px 8px;display:flex;flex-direction:column;align-items:center;line-height:1.15;font-variant-numeric:tabular-nums;font-weight:700;font-size:16px}
 .chip small{color:var(--muted);font-weight:600;font-size:10px;text-transform:uppercase;letter-spacing:.08em}
@@ -111,11 +111,12 @@ h2{font-family:var(--display);font-size:17px;letter-spacing:.04em;margin:0}
       <div class="chip"><small>Ore per second</small><b id="ops">0</b></div>
       <div class="chip" id="wchip" style="display:none"><small>Forged</small><b id="wpns">0</b></div>
     </div>
-    <div class="places" id="places"><button class="b sm on" data-v="mine">Mine</button><button class="b sm" data-v="forge">Forge</button><button class="b sm" data-v="army" style="display:none">Army</button></div>
-    <div class="scene" id="scene"><canvas id="cv" width="480" height="210"></canvas><div class="taphint" id="taphint">Tap the rock</div><div class="fresult" id="fresult"></div></div>
+    <div class="places" id="places"><button class="b sm on" data-v="mine">Mine</button><button class="b sm" data-v="forge">Forge</button><button class="b sm" data-v="army" style="display:none">Army</button><button class="b sm" data-v="explore" style="display:none">Explore</button></div>
+    <div class="scene" id="scene"><canvas id="cv" width="480" height="210"></canvas><div class="taphint" id="taphint">Tap the rock</div><div class="fresult" id="fresult"></div><div class="fresult" id="xresult"></div></div>
     <div class="ftrack" id="ftrack" style="display:none"><div class="ftop"><div class="fpips" id="fpipbox"><div class="fpipsin" id="fpips"></div></div><button class="b go fact" id="fact">Heat</button><span class="fstars" id="fstars"></span></div><div class="track idle" id="track"><div class="zone" id="zone"><i></i></div><div class="marker" id="marker"></div><div class="sparks" id="sparks"></div><div class="tlabel" id="tlabel"></div></div></div>
   </div>
   <section class="panel apanel" id="apanel" style="display:none"></section>
+  <section class="panel apanel" id="xpanel" style="display:none"></section>
   <section class="panel fpanel" id="fpanel" style="display:none">
     <div class="seg wpick" id="wpick"></div>
     <div class="row frow"><button class="b sm" id="fminus" aria-label="Fewer Folds">−</button><b id="fsize" class="fsize"></b><button class="b sm" id="fplus" aria-label="More Folds">+</button><span class="note" id="fcost"></span></div>
@@ -278,7 +279,7 @@ const nightText=()=>lv('lamp')?`for ${nightHours()} h at ${nightPct()}% while yo
 const costAt=(k,l)=>Math.ceil(HK[k].base*Math.pow(1.15,l));
 function costN(k,n){let c=0,l=lv(k);for(let i=0;i<n;i++)c+=costAt(k,l+i);return c}
 
-function fresh(){return{ore:0,mined:0,taps:0,blasts:0,h:{miner:1},seen:{miner:1},t:Date.now(),lastBackup:0,forge:0,view:'mine',forged:0,made:{},best:{},pick:{w:'sword',n:3},inv:[],nid:1,army:0,heroes:[],sel:0,explore:0,v:4}}
+function fresh(){return{ore:0,mined:0,taps:0,blasts:0,h:{miner:1},seen:{miner:1},t:Date.now(),lastBackup:0,forge:0,view:'mine',forged:0,made:{},best:{},pick:{w:'sword',n:3},inv:[],nid:1,army:0,heroes:[],sel:0,explore:0,stage:1,renown:0,v:4}}
 function save(){S.t=Date.now();try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
 function load(){let d=null;try{d=JSON.parse(localStorage.getItem(KEY)||'null')}catch(e){}S=Object.assign(fresh(),d||{});S.h=Object.assign({miner:1},S.h);migrate()}
 // v2 (Nov 19 evening): the first forge (auto smiths, 1M-ore swords) was replaced by the forging minigame; its forge levels and weapon counts go
@@ -333,7 +334,7 @@ function swing(n){A.miner.seg==='strike'?minerLoad+=n:(minerLanded(),minerLoad=n
 function minerLanded(){if(!minerLoad)return;gain(minerTap()*minerLoad,SPOT.miner.pop);burst(SPOT.miner.hit,8,CHIPS);minerLoad=0}
 function prospLanded(){if(!prosLoad)return;gain(prospTap()*prosLoad,SPOT.pros.pop,'#bcd4ff');burst(SPOT.pros.hit,6,CHIPS,.7);prosLoad=0}
 let hintGone=false;
-function tap(){if(S.view==='army')return;if(S.view==='forge')return F?strike():heat();S.taps++;if(!hintGone&&S.taps>=3){hintGone=true;$('#taphint').style.opacity=0}swing(1)}
+function tap(){if(S.view==='army'||S.view==='explore')return;if(S.view==='forge')return F?strike():heat();S.taps++;if(!hintGone&&S.taps>=3){hintGone=true;$('#taphint').style.opacity=0}swing(1)}
 
 /* ---------- the forge: Blacksmith Battles' forging minigame ---------- */
 const ANVIL={pop:[304,82],hit:[262,112]};
@@ -451,9 +452,9 @@ function drawFx(dt){
 }
 // switching places slides the scenes like a strip: the mine on the left, the forge to its right
 let slide=null;
-const drawPlace=(v,dt)=>v==='forge'&&S.forge?drawForge(dt):v==='army'&&S.army?drawArmy(dt):draw(dt);
+const drawPlace=(v,dt)=>v==='forge'&&S.forge?drawForge(dt):v==='army'&&S.army?drawArmy(dt):v==='explore'&&S.explore?drawExplore(dt):draw(dt);
 function drawScene(dt){if(!slide)return drawPlace(S.view,dt);slide.t=Math.min(1,slide.t+dt/.45);
-  const k=slide.t<.5?2*slide.t*slide.t:1-Math.pow(-2*slide.t+2,2)/2,PL=['mine','forge','army'],dir=PL.indexOf(S.view)>PL.indexOf(slide.from)?1:-1;
+  const k=slide.t<.5?2*slide.t*slide.t:1-Math.pow(-2*slide.t+2,2)/2,PL=['mine','forge','army','explore'],dir=PL.indexOf(S.view)>PL.indexOf(slide.from)?1:-1;
   ctx.save();ctx.translate(Math.round(-dir*k*480),0);drawPlace(slide.from,dt);ctx.restore();
   ctx.save();ctx.translate(Math.round(dir*(1-k)*480),0);drawPlace(S.view,dt);ctx.restore();
   ctx.fillStyle='#000';ctx.fillRect(Math.round(dir>0?480*(1-k)-1:480*k-1),0,2,210);if(slide.t>=1)slide=null}
@@ -500,7 +501,7 @@ function refreshArmy(){const on=S.army&&S.view==='army';$('#apanel').style.displ
   const cur=h.eq&&itemById(h.eq);
   if(amode==='hero'){
     P.innerHTML=`<div class="ahead"><div class="grow"><h3>${h.n}</h3><span class="note">${S.heroes.length>1?`Hero ${S.sel+1} of ${S.heroes.length} · tap a hero to switch`:'Your first hero'}</span></div></div>`+
-      (cur?`<div class="aw" id="acur"><div class="grow"><b style="color:${GCOL[cur.g]}">${wTitle(cur)}</b> <span class="note">★${cur.stars} · Power ${fmtN(wPower(cur))}</span></div></div>${statGrid(cur)}<div class="row"><button class="b go" data-a="pick">Change weapon</button><button class="b" data-a="unequip">Unequip</button></div>`
+      (cur?`<div class="aw" id="acur"><div class="grow"><b style="color:${GCOL[cur.g]}">${wTitle(cur)}</b> <span class="note">★${cur.stars} · Power ${fmtN(wPower(cur))}</span></div></div>${statGrid(cur)}<div class="row"><button class="b go" data-a="pick">Change weapon</button><button class="b" data-a="unequip">Unequip</button>${S.sel>0?'<button class="b" data-a="fwd">Move to front</button>':''}</div>`
           :`<p class="note">Nothing equipped yet.</p><div class="row"><button class="b go" data-a="pick" ${S.inv.length?'':'disabled'}>Equip</button></div>`);
     if(cur)P.querySelector('#acur').prepend(iconBox(cur));
   }else if(amode==='pick'){
@@ -520,8 +521,94 @@ $('#apanel').addEventListener('click',e=>{const b=e.target.closest('button');if(
   if(b.dataset.id){adet=+b.dataset.id;amode='det'}
   else if(b.dataset.a==='pick')amode='pick';else if(b.dataset.a==='back')amode='hero';
   else if(b.dataset.a==='unequip'){h.eq=null;save()}
-  else if(b.dataset.a==='equip'){const hi=holderOf(adet);if(hi>=0)S.heroes[hi].eq=null;h.eq=adet;amode='hero';toast(`${h.n} takes up the ${wTitle(itemById(adet))}`);if(!S.explore)S.explore=1;save()}
+  else if(b.dataset.a==='fwd'){S.heroes.splice(S.sel,1);S.heroes.unshift(h);S.sel=0;toast(`${h.n} leads the line`);save()}
+  else if(b.dataset.a==='equip'){const hi=holderOf(adet);if(hi>=0)S.heroes[hi].eq=null;h.eq=adet;amode='hero';toast(`${h.n} takes up the ${wTitle(itemById(adet))}`);if(!S.explore){S.explore=1;setPlaces();setTimeout(()=>toast('Explore is open: lead your army deeper into the cave.'),1500)}save()}
   refreshArmy()});
+/* ---------- Explore: deeper into the cave, fights as in Blacksmith Battles ----------
+   Your heroes with weapons form a line (hero 1 in front). Every unit fills an attack meter by its Haste and swings when it is full.
+   Sword, Axe, Shield and Warhammer reach from the front only, the Spear from 1st or 2nd. Axes cleave the next foe for half, Swords
+   riposte 15% of melee hits, a Shield in front takes 30% of every hit meant for those behind it, Warhammers knock the target's meter back.
+   Hits are cut by Defense (scale-free: hit*hit/(hit+0.52*Defense)), Crit is a % chance for 1.75x. The Copper Warden waits at stage 10. */
+const WARDEN_STAGE=10;
+const FT={st:[2,4,6],f1:.55,f2:.85,eb:2,ws:8,web:2}; // foe tuning (stars by how far into the stretch, etch steps; the Warden's stars and etches)
+const REACH={sword:1,axe:1,shield:1,hammer:1,spear:2};
+const heroAt=n=>n<=2?(n<=1?0:6):n<=4?[0,0,6,12,18][n]:Math.round(18*Math.pow(1.35,n-4)); // renown for hero n (stages give 2, the Warden 6)
+const armyAt=st=>{const r=2*(st-1);let n=1;while(r>=heroAt(n+1))n++;return n}; // heroes you'd have by a stage
+function rngX(seed){let a=seed>>>0;return()=>{a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function unitOf(w,stars,etch,side,i,name,warden){const k=starMult(stars),b=WBASE[w].map((v,j)=>Math.round(v*(STN[j]==='Haste'?Math.min(k,7):k))+(etch[j]||0));
+  return{id:side+':'+i,name,w,warden,might:b[0],crit:b[2],haste:b[3],def:b[4],mdef:b[5],hp:b[6],max:b[6],side,t:0,swings:0}}
+function heroUnits(){return S.heroes.filter(h=>h.eq&&itemById(h.eq)).map((h,i)=>{const it=itemById(h.eq),[m,,cr,ha,df,md,v]=wStats(it);return{id:'0:'+i,name:h.n,w:it.w,might:m,crit:cr,haste:ha,def:df,mdef:md,hp:v,max:v,side:0,t:0,swings:0}})}
+function foeSquad(stage){const r=rngX(stage*7919+11),wd=stage>=WARDEN_STAGE,f=Math.min(1,(stage-1)/(WARDEN_STAGE-2));
+  if(wd)return['axe','sword','spear','hammer'].map((w,i)=>{const e=[];for(let j=0;j<FT.web;j++){const k=j%2?6:0;e[k]=(e[k]||0)+(k?12:3)}return unitOf(w,FT.ws,e,1,i,i?'Warden guard':'Copper Warden',!i)});
+  const n=Math.min(armyAt(stage),1+Math.floor(f*4)),stars=FT.st[f<FT.f1?0:f<FT.f2?1:2],eb=Math.floor(f*f*FT.eb);
+  const plan=[['sword','axe'],['spear','axe','sword'],['spear','hammer'],['shield','hammer']],names=['Ghoul','Gnawer','Rockeater','Cave stalker'];
+  return Array.from({length:n},(_,i)=>{const w=plan[i][Math.floor(r()*plan[i].length)],e=[];for(let j=0;j<eb;j++){const k=j%2?6:0;e[k]=(e[k]||0)+(k?12:3)}return unitOf(w,stars,e,1,i,names[Math.floor(r()*names.length)])})}
+function simFight(A,B,seed){const r=rngX(seed),units=[...A,...B],ev=[];let tick=0;
+  const line=sd=>units.filter(u=>u.side===sd&&u.hp>0),slot=u=>line(u.side).indexOf(u);
+  const cut=(n,d)=>n*n/(n+.52*d.def),dmgOf=(a,d,m)=>Math.max(1,Math.floor(cut(a.might,d)*m*(.85+r()*.3)));
+  const push=o=>{o.tick=tick;ev.push(o)};
+  function hurt(src,d,dmg,info){if(d.hp<=0)return;const cov=line(d.side)[0];
+    if(src&&!info.cover&&cov&&cov!==d&&cov.w==='shield'){const part=Math.floor(dmg*.3);if(part>0){dmg-=part;hurt(src,cov,Math.max(1,Math.floor(cut(part,cov))),{cover:1})}}
+    if(d.hp<=0)return;d.hp=Math.max(0,d.hp-dmg);push({k:'hit',a:src?src.id:null,d:d.id,dmg,hp:d.hp,...info});if(d.hp<=0)push({k:'down',d:d.id})}
+  function swing(a){const foes=line(1-a.side);if(!foes.length)return;const d=foes[0];a.swings++;const crit=r()*100<Math.min(50,a.crit);
+    push({k:'swing',a:a.id});const dmg=dmgOf(a,d,crit?1.75:1);hurt(a,d,dmg,{crit});
+    if(a.w==='hammer'&&d.hp>0&&d.t>0)d.t=Math.max(0,d.t-40);
+    if(a.w==='axe'&&a.hp>0){const o=line(1-a.side).filter(u=>u!==d)[0];if(o)hurt(a,o,Math.max(1,Math.floor(dmg/2)),{cleave:1})}
+    if(d.w==='sword'&&d.hp>0&&a.hp>0&&slot(d)===0&&a.w!=='spear'&&r()<.15)hurt(d,a,dmgOf(d,a,.5),{riposte:1})}
+  while(tick<1500&&line(0).length&&line(1).length){tick++;
+    for(const a of units){if(a.hp<=0)continue;if(slot(a)>=REACH[a.w]){a.t=Math.min(100,a.t+a.haste);continue}a.t+=a.haste;if(a.t<100)continue;a.t-=100;swing(a);if(!line(0).length||!line(1).length)break}}
+  return{ev,win:line(0).length>0&&line(1).length===0}}
+let xatlas=null,ximg=null,battle=null,xspd=1;
+const sprX=(n,x=0,y=0)=>{const s=xatlas.sprites[n];if(s)ctx.drawImage(ximg,s[0],s[1],s[2],s[3],s[4]+x,s[5]+y,s[2],s[3])};
+const XDUR={idle:1,hit:.4,fall:.6},XGAP=30;
+function xLayer(u){return (u.side===0?'u-':u.warden?'w-':'e-')+u.w}
+function previewUnits(){const st=Math.min(S.stage,WARDEN_STAGE);return{A:heroUnits(),B:foeSquad(st)}}
+function startFight(){if(battle&&battle.live)return;const A=heroUnits();if(!A.length){toast('Equip a hero in the Army first.');return}
+  const st=Math.min(S.stage,WARDEN_STAGE),B=foeSquad(st),seed=(Math.random()*1e9)>>>0,clone=a=>a.map(u=>({...u}));
+  const res=simFight(clone(A),clone(B),seed),all=[...clone(A),...clone(B)];
+  for(const u of all){u.seg='idle';u.at=Math.random();u.px=null;u.dead=false}
+  battle={st,replay:S.stage>WARDEN_STAGE,res,U:all,i:0,tick:0,acc:0,live:true,fl:[],msg:''};refreshExplore()}
+function xUnit(id){return battle.U.find(u=>u.id===id)}
+function exploreLogic(dt){const b=battle;if(!b)return;for(const u of b.U){u.at+=dt;if(u.seg==='hit'&&u.at>=XDUR.hit){u.seg='idle';u.at=0}}
+  for(const f of b.fl)f.t+=dt;b.fl=b.fl.filter(f=>f.t<.9);
+  if(!b.live)return;b.acc+=dt*xspd;const TICK=.06;
+  while(b.acc>=TICK){b.acc-=TICK;b.tick++;
+    while(b.i<b.res.ev.length&&b.res.ev[b.i].tick<=b.tick){const e=b.res.ev[b.i++],d=xUnit(e.d||e.a);
+      if(e.k==='swing'){d.seg='hit';d.at=0}
+      else if(e.k==='hit'){d.hp=e.hp;b.fl.push({id:d.id,txt:'-'+fmtN(e.dmg),c:e.crit?'#ffd060':d.side?'#fff2c0':'#ff8a6a',t:0})}
+      else if(e.k==='down'){d.dead=true;d.seg='fall';d.at=0}}
+    if(b.i>=b.res.ev.length){endFight();break}}}
+function endFight(){const b=battle;b.live=false;let msg;
+  if(b.res.win&&!b.replay){const wd=b.st>=WARDEN_STAGE,ren=wd?6:2;S.renown=(S.renown||0)+ren;S.stage=b.st+1;
+    msg=wd?'The Copper Warden falls! Past him the tunnel opens toward Bronze.':`Stage ${b.st} cleared! Your army pushes deeper.`;
+    while(S.renown>=heroAt(S.heroes.length+1)){const n=recruit();setTimeout(()=>toast(`Word of your victories spreads: ${n} joins your army.`),1600)}}
+  else if(b.res.win)msg='The Warden falls again.';
+  else msg='Your line fell. Forge stronger weapons, or change the order in the Army.';
+  b.msg=msg;save();refreshExplore()}
+function linePos(u,arr){const alive=arr.filter(x=>!x.dead),i=alive.indexOf(u);return i<0?null:i}
+function drawExplore(dt){const bg=xatlas.sprites.bg;ctx.drawImage(ximg,bg[0],bg[1],bg[2],bg[3],-3,-3,486,216);
+  const b=battle,U=b?b.U:(()=>{const p=previewUnits();return[...p.A,...p.B].map(u=>({...u,seg:'idle',at:(u.side*0.31+parseInt(u.id.slice(2))*.17)}))})();
+  const A=U.filter(u=>u.side===0),B=U.filter(u=>u.side===1);
+  // fallen first, then the lines back to front
+  const order=[...U].sort((a,b)=>(b.dead?1:0)-(a.dead?1:0)||(linePos(b,b.side?B:A)??9)-(linePos(a,a.side?B:A)??9));
+  for(const u of order){const arr=u.side?B:A,i=linePos(u,arr),tx=(u.side?1:-1)*XGAP*(i??0);
+    if(u.px==null)u.px=tx;if(i!=null)u.px+=(tx-u.px)*Math.min(1,dt*6);
+    const L=xatlas.heroes[xLayer(u)][u.seg],fr=L.f[Math.min(L.f.length-1,Math.floor((u.seg==='idle'?(clock*.9+u.at)%1:Math.min(.999,u.at/XDUR[u.seg]))*L.f.length))],s=xatlas.sprites[fr];
+    const lunge=u.seg==='hit'?(u.side?-1:1)*Math.round(5*Math.sin(Math.min(1,u.at/XDUR.hit)*Math.PI)):0;
+    sprX(fr,Math.round(u.px)+lunge,0);
+    if(!u.dead&&b){const cx=s[4]+u.px+s[2]/2,y=(u.side?94:99)-6,w=22;ctx.fillStyle='rgba(0,0,0,.6)';ctx.fillRect(Math.round(cx-w/2)-1,y-1,w+2,4);ctx.fillStyle=u.side?'#e05a4a':'#72d394';ctx.fillRect(Math.round(cx-w/2),y,Math.round(w*u.hp/u.max),2)}
+    if(!b&&u.warden){const cx=s[4]+u.px+s[2]/2;ctx.save();ctx.font='bold 9px system-ui,sans-serif';ctx.textAlign='center';ctx.fillStyle='#ffb070';ctx.fillText('Copper Warden',cx,82);ctx.restore()}}
+  if(b){ctx.save();ctx.font='bold 10px system-ui,sans-serif';ctx.textAlign='center';for(const f of b.fl){const u=xUnit(f.id),s=xatlas.sprites[xLayer(u)+'-idle-0'];ctx.globalAlpha=Math.max(0,1-f.t/.9);ctx.fillStyle='rgba(0,0,0,.7)';const x=s[4]+u.px+s[2]/2,y=(u.side?90:95)-8-f.t*16;ctx.fillText(f.txt,x+1,y+1);ctx.fillStyle=f.c;ctx.fillText(f.txt,x,y)}ctx.restore()}
+}
+function refreshExplore(){const on=S.explore&&S.view==='explore';$('#xpanel').style.display=on?'':'none';const xr=$('#xresult');if(!on){xr.classList.remove('on');return}
+  const b=battle,st=Math.min(S.stage,WARDEN_STAGE),done=S.stage>WARDEN_STAGE,A=heroUnits(),idle=S.heroes.filter(h=>!h.eq).map(h=>h.n);
+  const B=foeSquad(st),title=done?'Beyond the Copper Warden':st===WARDEN_STAGE?'Stage 10: the Copper Warden':`Stage ${st}`;
+  xr.textContent=b&&b.msg?b.msg:'';xr.classList.toggle('on',!!(b&&b.msg));
+  $('#xpanel').innerHTML=`<div class="ahead"><div class="grow"><h3>${title}</h3><span class="note">${done?'The way on to Bronze opens soon. You can fight the Warden again.':`${B.length} ${st===WARDEN_STAGE?'foes':B.length>1?'ghouls':'ghoul'} ahead · ${A.length} of your heroes armed`}${idle.length?` · ${idle.join(', ')} ${idle.length>1?'have':'has'} no weapon`:''}</span></div></div>`+
+    (b&&b.live?`<div class="row"><button class="b" data-x="spd">Speed ${xspd}x</button><button class="b" data-x="skip">Skip</button></div>`
+      :`<div class="row"><button class="b go" data-x="go" ${A.length?'':'disabled'}>${done?'Fight the Warden again':b&&!b.res.win&&b.st===st?'Try again':'Explore'}</button>${b&&!b.live?'<button class="b" data-x="clear">Back</button>':''}</div>`)}
+$('#xpanel').addEventListener('click',e=>{const t=e.target.closest('[data-x]');if(!t)return;const x=t.dataset.x;
+  if(x==='go'){battle=null;startFight()}else if(x==='spd'){xspd=xspd===1?2:xspd===2?4:1}else if(x==='skip'&&battle&&battle.live){while(battle.live)exploreLogic(1)}else if(x==='clear')battle=null;refreshExplore()});
 const hexRgb=h=>[1,3,5].map(i=>parseInt(h.slice(i,i+2),16)).join(',');
 /* ---------- hero cards ---------- */
 const PIC={smith:['smith-idle-0'],swordsmith:['sword-idle-0'],axesmith:['axe-idle-0'],spearwright:['spear-idle-0'],shieldwright:['shield-idle-0'],hammersmith:['hammer-idle-0'],miner:['miner-idle-0',0,0,34],carter:['cart-out-16',0,0,30],phantom:['phantom-strike-4',0,0,40],prospector:['pros-idle-0',0,0,40],foreman:['boss-idle-0',0,0,26],blaster:['blast-idle-0',0,0,40],lamp:['lamp-idle-0',0,0,24],time:['time-idle-0',0,0,26]};
@@ -551,7 +638,7 @@ function buy(k){const L=lv(k),n=1,c=costN(k,n);if(S.ore<c)return;S.ore-=c;const 
 
 /* ---------- ui ---------- */
 let toastT=0;function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),2600)}
-$('#scene').addEventListener('pointerdown',e=>{e.preventDefault();if(S.view==='army'){const r=$('#cv').getBoundingClientRect();armyTap((e.clientX-r.left)/r.width*480,(e.clientY-r.top)/r.height*210);return}tap()});
+$('#scene').addEventListener('pointerdown',e=>{e.preventDefault();if(S.view==='explore')return;if(S.view==='army'){const r=$('#cv').getBoundingClientRect();armyTap((e.clientX-r.left)/r.width*480,(e.clientY-r.top)/r.height*210);return}tap()});
 $('#track').addEventListener('pointerdown',e=>{e.preventDefault();tap()});
 // iPhone: fast taps must never zoom the page (double-tap zoom and pinch)
 for(const ev of ['gesturestart','gesturechange','gestureend','dblclick'])document.addEventListener(ev,e=>e.preventDefault(),{passive:false});
@@ -573,9 +660,9 @@ $('#fact').addEventListener('click',()=>{if(F)quench();else heat();refreshForge(
 $('#fpanel').addEventListener('click',e=>{const t=e.target.closest('button');if(!t)return;
   if(t.dataset.w&&!F){S.pick.w=t.dataset.w}else if(t.id==='fminus'&&!F)S.pick.n--;else if(t.id==='fplus'&&!F)S.pick.n++;refreshForge();save()});
 function setPlaces(){$('#places').classList.toggle('on',!!S.forge);$('#res').classList.toggle('three',!!S.forge);$('#wchip').style.display=S.forge?'':'none';
-  if(!S.forge)S.view='mine';if(!S.army&&S.view==='army')S.view='mine';$('#places').classList.toggle('three',!!S.army);$('[data-v=army]').style.display=S.army?'':'none';
-  for(const b of $('#places').children)b.classList.toggle('on',b.dataset.v===S.view);refreshArmy();
-  const done=S.view==='forge'?fhintGone:hintGone;$('#taphint').textContent=S.view==='forge'?'Tap to heat a blank, then strike':'Tap the rock';refreshForge();$('#taphint').style.opacity=done||S.view==='army'?0:1}
+  if(!S.forge)S.view='mine';if(!S.army&&S.view==='army')S.view='mine';if(!S.explore&&S.view==='explore')S.view='mine';$('#places').classList.toggle('three',!!S.army&&!S.explore);$('#places').classList.toggle('four',!!S.explore);$('[data-v=army]').style.display=S.army?'':'none';$('[data-v=explore]').style.display=S.explore?'':'none';
+  for(const b of $('#places').children)b.classList.toggle('on',b.dataset.v===S.view);refreshArmy();refreshExplore();
+  const done=S.view==='forge'?fhintGone:hintGone;$('#taphint').textContent=S.view==='forge'?'Tap to heat a blank, then strike':'Tap the rock';refreshForge();$('#taphint').style.opacity=done||S.view==='army'||S.view==='explore'?0:1}
 $('#places').addEventListener('click',e=>{const b=e.target.closest('[data-v]');if(!b||!S.forge||b.dataset.v===S.view)return;slide={from:S.view,t:0};S.view=b.dataset.v;amode='hero';pops.length=0;parts.length=0;setPlaces();buildCards();save()});
 let resetArm=false;
 $('#reset').onclick=()=>{if(!resetArm){resetArm=true;$('#reset').textContent='Tap again to erase this save';setTimeout(()=>{resetArm=false;$('#reset').textContent='Start over'},3000);return}S=fresh();save();setPlaces();buildCards();toast('A fresh mine')};
@@ -587,7 +674,7 @@ $('#loadinput').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new 
 
 let last=0,lastSave=0,lastUi=0,hiddenAt=0;
 function frame(now){const dt=last?Math.min(.1,(now-last)/1000):0;last=now;clock+=dt;
-  for(const a of Object.values(A))a.step(dt);logic(dt);forgeLogic(dt);if(!S.forge&&lv('foreman'))openForge();drawScene(dt);
+  for(const a of Object.values(A))a.step(dt);logic(dt);forgeLogic(dt);exploreLogic(dt);if(!S.forge&&lv('foreman'))openForge();drawScene(dt);
   if(now-lastUi>200){lastUi=now;$('#ore').textContent=fmtN(S.ore);if(S.forge){$('#wpns').textContent=fmtN(S.forged);if(S.view==='forge'&&!F)refreshForge()}$('#ops').textContent=fmtN(autoRate());revealCheck();refreshCards();$('#backup').textContent=S.lastBackup?`Last backup ${new Date(S.lastBackup).toLocaleDateString()}`:'Never backed up'}
   if(now-lastSave>5000){lastSave=now;save()}
   requestAnimationFrame(frame)}
@@ -597,7 +684,7 @@ window.addEventListener('pagehide',save);
 
 load();
 const pic=src=>new Promise((ok,bad)=>{const i=new Image();i.onload=()=>ok(i);i.onerror=bad;i.src=src});
-Promise.all([fetch('art/mine.json').then(r=>r.json()),pic('art/mine.png'),fetch('art/forge.json').then(r=>r.json()),pic('art/forge.png'),fetch('art/army.json').then(r=>r.json()),pic('art/army.png')]).then(([a,i,fa,fi,aa,ai])=>{atlas=a;img=i;fatlas=fa;fimg=fi;aatlas=aa;aimg=ai;
+Promise.all([fetch('art/mine.json').then(r=>r.json()),pic('art/mine.png'),fetch('art/forge.json').then(r=>r.json()),pic('art/forge.png'),fetch('art/army.json').then(r=>r.json()),pic('art/army.png'),fetch('art/explore.json').then(r=>r.json()),pic('art/explore.png')]).then(([a,i,fa,fi,aa,ai,xa,xi])=>{atlas=a;img=i;fatlas=fa;fimg=fi;aatlas=aa;aimg=ai;xatlas=xa;ximg=xi;
   A.miner=new Actor('miner',e=>{if(e==='strike')minerLanded()});A.pros=new Actor('pros',e=>{if(e==='strike')prospLanded()});
   A.phantom=new Actor('phantom',e=>{if(e==='strike'){gain(phantomRate()*PHANTOM_EVERY,SPOT.phantom.pop,'#b8fff0');burst(SPOT.phantom.hit,6,['#8affe0','#d88038','#f0b070'],.7)}});
   A.boss=new Actor('boss');A.blast=new Actor('blast');A.lamp=new Actor('lamp');A.time=new Actor('time');
