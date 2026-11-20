@@ -167,14 +167,14 @@ const HEROES=[
      Forging is Blacksmith Battles' minigame, and it is the hook: pick a weapon and a blank size in Folds, then strike while
      the marker crosses the glow (Perfect 2 stars, Good 1, from the 5th Perfect in a row 3, 4, 5...). A miss ends the blank
      and costs a third of your stars; Quench banks the score early. Stars set the grade. Forge heroes never forge on their
-     own: they make it easier (Blacksmith), cheaper (Smelter) or better (the smiths). */
+     own: they make it easier (the Blacksmith) or better (the smiths). There are no ingots: blanks are paid in ore. */
   {k:'smith',n:'Blacksmith',base:3000,place:'forge',noMs:true,
     what:()=>`You. Blanks hold up to ${maxFolds()} Folds (${MATCAP} in Copper). Glow ${zoneW()}% wide, marker at ${Math.round(smithSlow()*100)}% speed`,
     ms:lv=>smithMs(lv)},
-  {k:'smelter',n:'Smelter',base:15000,place:'forge',
-    what:()=>`Pours ${fmtN(ingotRate()*60)} ingots a minute. A blank uses ingots (${INGOT} ore each) before ore`,
-    ms:lv=>`Level ${nextMs(lv)}: ${['a bigger crucible','a second mould','a pouring channel','a river of bronze'][Math.min(3,msCount(lv))]}, double ingots`,
-    req:()=>lv('smith')>=5&&S.forged>=5, hint:'Blanks eat a lot of ore. Forge 5 weapons and get the Blacksmith to level 5.'},
+  {k:'swordsmith',n:'Swordsmith',base:15000,place:'forge',noMs:true,w:'sword',
+    what:()=>`Every Sword you forge gets +${3*lv('swordsmith')}% Might and Haste, locked in when it's forged`,
+    ms:lv=>`Next level: +3% more`,
+    req:()=>lv('smith')>=5, hint:'The Blacksmith learns Swords at level 5.'},
   {k:'axesmith',n:'Axesmith',base:1e5,place:'forge',noMs:true,w:'axe',
     what:()=>`Every Axe you forge gets +${3*lv('axesmith')}% Might and Vigor, locked in when it's forged`,
     ms:lv=>`Next level: +3% more`,
@@ -194,12 +194,12 @@ const HEROES=[
 ];
 const place=h=>h.place||'mine';
 const WEAP={sword:{n:'Sword',p:'Swords'},axe:{n:'Axe',p:'Axes'},spear:{n:'Spear',p:'Spears'},shield:{n:'Shield',p:'Shields'},hammer:{n:'Warhammer',p:'Warhammers'}};
-// stations: the Blacksmith level that teaches the weapon (Jonathan: Axes 25, Spears 50), its smith, and the art layer
-const STATIONS=[{lv:25,k:'axesmith',w:'axe'},{lv:50,k:'spearwright',w:'spear'},{lv:75,k:'shieldwright',w:'shield'},{lv:100,k:'hammersmith',w:'hammer'}];
+// stations: the Blacksmith level that teaches the weapon (Jonathan: Swords 5, Axes 25, Spears 50), its smith, and the art layer
+const STATIONS=[{lv:5,k:'swordsmith',w:'sword'},{lv:25,k:'axesmith',w:'axe'},{lv:50,k:'spearwright',w:'spear'},{lv:75,k:'shieldwright',w:'shield'},{lv:100,k:'hammersmith',w:'hammer'}];
 const SWORD_LV=5; // Jonathan: you can't forge anything until the Blacksmith learns Swords at level 5
-const known=()=>[...(lv('smith')>=SWORD_LV?['sword']:[]),...STATIONS.filter(st=>lv('smith')>=st.lv).map(st=>st.w)];
+const known=()=>STATIONS.filter(st=>lv('smith')>=st.lv).map(st=>st.w);
 // Folds (Jonathan's name for slams): blanks start at 3, +1 every 5 Blacksmith levels, no ceiling; Copper holds 10
-const MATCAP=10,BLANK=150,INGOT=50;
+const MATCAP=10,BLANK=150;
 const maxFolds=()=>3+Math.floor(lv('smith')/5);
 const foldLimit=()=>Math.min(MATCAP,maxFolds());
 const blankCost=n=>BLANK*Math.pow(2,n-3); // a 3-Fold Copper blank is 150 ore; every Fold doubles it (as in Blacksmith Battles)
@@ -207,8 +207,7 @@ const blankCost=n=>BLANK*Math.pow(2,n-3); // a 3-Fold Copper blank is 150 ore; e
 const SMITH_GLOW=[5,20,40],SMITH_SLOW=[10,30,50];
 const zoneW=()=>14+5*SMITH_GLOW.filter(n=>lv('smith')>=n).length;
 const smithSlow=()=>1-0.07*SMITH_SLOW.filter(n=>lv('smith')>=n).length;
-const ingotRate=()=>lv('smelter')?0.05*lv('smelter')*mult('smelter'):0; // ingots a second
-function smithMs(L){const ev=[];for(let l=L+1;l<=L+40&&!ev.length;l++){const st=STATIONS.find(s=>s.lv===l);if(l===SWORD_LV)ev.push('learns Swords');
+function smithMs(L){const ev=[];for(let l=L+1;l<=L+40&&!ev.length;l++){const st=STATIONS.find(s=>s.lv===l);
   if(l%5===0)ev.push(`+1 Fold`);if(SMITH_GLOW.includes(l))ev.push('a wider glow');if(SMITH_SLOW.includes(l))ev.push('a slower marker');if(st)ev.push(`learns ${WEAP[st.w].p}`);if(ev.length)return `Level ${l}: ${ev.join(', ')}`}return ''}
 // grades by stars, the same 20 as Blacksmith Battles
 const GR=[['Crude',0],['Fine',4],['Superior',7],['Masterwork',11],['Exalted',15],['Heroic',20],['Mythic',28],['Legendary',38],['Fabled',50],['Runebound',65],
@@ -254,12 +253,14 @@ const nightText=()=>lv('lamp')?`for ${nightHours()} h at ${nightPct()}% while yo
 const costAt=(k,l)=>Math.ceil(HK[k].base*Math.pow(1.15,l));
 function costN(k,n){let c=0,l=lv(k);for(let i=0;i<n;i++)c+=costAt(k,l+i);return c}
 
-function fresh(){return{ore:0,mined:0,taps:0,blasts:0,h:{miner:1},seen:{miner:1},t:Date.now(),lastBackup:0,forge:0,view:'mine',ingots:0,forged:0,made:{},best:{},pick:{w:'sword',n:3},v:2}}
+function fresh(){return{ore:0,mined:0,taps:0,blasts:0,h:{miner:1},seen:{miner:1},t:Date.now(),lastBackup:0,forge:0,view:'mine',forged:0,made:{},best:{},pick:{w:'sword',n:3},v:3}}
 function save(){S.t=Date.now();try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
 function load(){let d=null;try{d=JSON.parse(localStorage.getItem(KEY)||'null')}catch(e){}S=Object.assign(fresh(),d||{});S.h=Object.assign({miner:1},S.h);migrate()}
 // v2 (Nov 19 evening): the first forge (auto smiths, 1M-ore swords) was replaced by the forging minigame; its forge levels and weapon counts go
 function migrate(){if((S.v||1)<2){for(const k of ['smith','smelter','axesmith','spearwright','shieldwright','hammersmith']){delete S.h[k];delete S.seen[k]}
-  delete S.wpn;delete S.work;delete S.blows;S.forge=0;S.view='mine';S.ingots=0;S.forged=0;S.made={};S.best={};S.pick={w:'sword',n:3};S.v=2}}
+  delete S.wpn;delete S.work;delete S.blows;S.forge=0;S.view='mine';S.ingots=0;S.forged=0;S.made={};S.best={};S.pick={w:'sword',n:3};S.v=2}
+  // v3: ingots and the Smelter are gone (Jonathan: ingots were a pointless second currency). Refund his levels and any ingots as ore
+  if(S.v<3){const L=S.h.smelter||0;if(L)S.ore+=15000*(Math.pow(1.15,L)-1)/0.15;S.ore+=Math.floor(S.ingots||0)*50;delete S.h.smelter;delete S.seen.smelter;delete S.ingots;S.v=3}}
 
 /* ---------- the scene: art/mine.png + art/mine.json, rendered from art/src/mine.js (see tools/) ---------- */
 const cv=$('#cv'),ctx=cv.getContext('2d');ctx.imageSmoothingEnabled=false;
@@ -283,7 +284,7 @@ const boxF=n=>{const s=fatlas.sprites[n];return[s[4],s[5],s[2],s[3]]};
 // a hero's clip player: an idle loop, and one-shot segments that return to idle. Clip lengths match art/src/mine.js
 const DUR={miner:{idle:1,strike:.12,recover:.38},pros:{idle:1,strike:.12,recover:.38},phantom:{idle:1,strike:.12,recover:.38},
   boss:{idle:1,call:.5},blast:{idle:1,duck:.6},lamp:{idle:1,reach:1},time:{idle:2,turn:.6},heap:{idle:1},
-  smith:{idle:1,strike:.12,recover:.38},axe:{idle:1,strike:.12,recover:.38},spear:{idle:1,strike:.12,recover:.38},shield:{idle:1,strike:.12,recover:.38},hammer:{idle:1,strike:.12,recover:.38},smelter:{idle:1,pour:1},fire:{idle:1}};
+  smith:{idle:1,strike:.12,recover:.38},sword:{idle:1,strike:.12,recover:.38},axe:{idle:1,strike:.12,recover:.38},spear:{idle:1,strike:.12,recover:.38},shield:{idle:1,strike:.12,recover:.38},hammer:{idle:1,strike:.12,recover:.38},fire:{idle:1}};
 class Actor{
   constructor(h,onEnd,F=false){this.h=h;this.F=F;this.seg='idle';this.t=Math.random();this.q=[];this.onEnd=onEnd||(()=>{})}
   play(seg,then=[]){this.seg=seg;this.t=0;this.q=then.slice()}
@@ -311,9 +312,9 @@ function tap(){if(S.view==='forge')return F?strike():heat();S.taps++;if(!hintGon
 const ANVIL={pop:[304,82],hit:[262,112]};
 
 let F=null,fhintGone=false;
-function heat(){if(F)return;if(!known().length){toast(`The Blacksmith learns Swords at level ${SWORD_LV}. Level him up first.`);return}const n=Math.min(S.pick.n,foldLimit()),c=blankCost(n),fromIng=Math.min(Math.floor(S.ingots),Math.floor(c/INGOT)),ore=c-fromIng*INGOT;
-  if(S.ore<ore){toast(`A ${n}-Fold blank needs ${fmtN(ore)} ore${fromIng?` (after ${fmtN(fromIng)} ingots)`:''}. Dig in the Mine.`);return}
-  S.ingots-=fromIng;S.ore-=ore;F={w:S.pick.w,n,res:[],pos:0,dir:1,speed:62,zl:0,last:0,done:false,msg:'Strike in the glow',msgT:0};placeZone();
+function heat(){if(F)return;if(!known().length){toast(`The Blacksmith learns Swords at level ${SWORD_LV}. Level him up first.`);return}const n=Math.min(S.pick.n,foldLimit()),ore=blankCost(n);
+  if(S.ore<ore){toast(`A ${n}-Fold blank needs ${fmtN(ore)} ore. Dig in the Mine.`);return}
+  S.ore-=ore;F={w:S.pick.w,n,res:[],pos:0,dir:1,speed:62,zl:0,last:0,done:false,msg:'Strike in the glow',msgT:0};placeZone();
   if(!fhintGone){fhintGone=true;$('#taphint').style.opacity=0}refreshForge()}
 function placeZone(){F.zl=8+Math.random()*(84-zoneW())}
 function forgeTick(dt){if(!F||F.done)return;F.pos+=F.dir*F.speed*smithSlow()*dt;if(F.pos>100){F.pos=100;F.dir=-1}if(F.pos<0){F.pos=0;F.dir=1}const m=$('#marker');if(m)m.style.left=F.pos+'%'}
@@ -325,7 +326,7 @@ function drawTrack(){const on=S.forge&&S.view==='forge';$('#ftrack').style.displ
   const n=F?F.n:Math.min(S.pick.n,foldLimit()),res=F?F.res:[];let st=0,h='';
   for(let i=0;i<n;i++){const r=res[i];if(r==='P')st++;else st=0;h+=`<span class="pip ${r==='P'?'p':r==='G'?'g':r?'m':''}${F&&i===res.length&&!F.done?' now':''}">${r==='P'?perfectStars(st):r==='G'?'1':r?'✕':i+1}</span>`}
   const row=$('#fpips');row.innerHTML=h;row.style.transform=`translateX(${-Math.max(0,res.length-3)*38}px)`;
-  const ks=known(),c=blankCost(n),ing=Math.min(Math.floor(S.ingots),Math.floor(c/INGOT)),ore=c-ing*INGOT;
+  const ks=known(),ore=blankCost(n);
   $('#tlabel').textContent=F?'':!ks.length?`The Blacksmith learns Swords at level ${SWORD_LV}`:S.ore<ore?`Need ${fmtN(ore)} ore. Dig in the Mine.`:`Tap to heat a ${n}-Fold ${WEAP[S.pick.w].n} blank (${fmtN(ore)} ore)`;
   const sc=F?scoreOf(F.res):0;$('#callout').innerHTML=F?`<span>${F.msg}</span><b>★${sc} ${GR[gradeOf(sc)].n}</b>`:`<span>${lastResult}</span>`}
 function strike(){if(!F||F.done)return;const now=performance.now(),w=zoneW(),p=F.pos;let r;
@@ -349,11 +350,7 @@ function finishForge(){const raw=scoreOf(F.res),missed=F.res.some(r=>r==='M'||r=
   const st=STATIONS.find(x=>x.w===w);if(st&&lv(st.k))A[w].play('strike',['recover','strike','recover']);
   F=null;save();refreshForge();refreshCards()}
 function popAt(at,txt,col){if(S.view==='forge')pops.push({x:at[0],y:at[1],txt,t:0,col,F:true})}
-// the Smelter pours every 3 s (a one second clip), adding what his rate made since the last pour
-const fac={smelt:0,pourT:0};
-function forgeLogic(dt){if(!S.forge)return;forgeTick(dt);
-  if(lv('smelter')){fac.smelt+=ingotRate()*dt;fac.pourT+=dt;if(fac.pourT>=3&&A.smelter.seg==='idle'){fac.pourT=0;A.smelter.play('pour')}}}
-function smelterPoured(){const n=fac.smelt;fac.smelt=0;if(n<=0)return;S.ingots+=n;const b=boxF('smelter-idle-0');popAt([b[0]+b[2]/2,b[1]-2],'+'+fmtN(n)+' '+(n>=2?'ingots':'ingot'),'#ffd27a')}
+function forgeLogic(dt){if(S.forge)forgeTick(dt)}
 function openForge(){S.forge=1;S.h.smith=S.h.smith||1;S.seen.smith=1;save();buildCards();setPlaces();toast('With the Foreman keeping the Miner swinging, you can go to the forge. Tap Forge.')}
 
 // automatic heroes run on their own clocks so the ore arrives in visible trips, strikes, calls and blasts
@@ -437,8 +434,6 @@ function drawForge(dt){
   const nx=HEROES.find(h=>place(h)==='forge'&&!lv(h.k)),isNext=k=>!!(nx&&nx.k===k&&S.seen[k]);
   for(const st of STATIONS){if(lv('smith')<st.lv)continue;sprF('st-'+st.w);const b=boxF(st.w+'-idle-0');
     if(lv(st.k))A[st.w].draw();else waitingSpot([b[0]+b[2]/2,b[1]+b[3]],isNext(st.k))}
-  const ni=Math.min(9,Math.floor(S.ingots));for(let i=0;i<ni;i++)sprF('ingot',(i%3)*6+Math.floor(i/3)*3,-Math.floor(i/3)*3);
-  if(lv('smelter')){A.smelter.draw();if(A.smelter.seg==='pour')glow(148,112,12,'255,180,80',.45)}else{const b=boxF('smelter-idle-0');waitingSpot([b[0]+b[2]/2,b[1]+b[3]],isNext('smelter'))}
   A.smith.draw();
   if(F)glow(ANVIL.hit[0],ANVIL.hit[1]+2,10+2*Math.sin(clock*6),'255,120,40',.45); // the hot blank
   if(A.smith.seg==='strike'||(A.smith.seg==='recover'&&A.smith.t<.08))glow(ANVIL.hit[0],ANVIL.hit[1],14,'255,200,120',.5);
@@ -446,7 +441,7 @@ function drawForge(dt){
 }
 const hexRgb=h=>[1,3,5].map(i=>parseInt(h.slice(i,i+2),16)).join(',');
 /* ---------- hero cards ---------- */
-const PIC={smith:['smith-idle-0'],smelter:['smelter-idle-0'],axesmith:['axe-idle-0'],spearwright:['spear-idle-0'],shieldwright:['shield-idle-0'],hammersmith:['hammer-idle-0'],miner:['miner-idle-0',0,0,34],carter:['cart-out-16',0,0,30],phantom:['phantom-strike-4',0,0,40],prospector:['pros-idle-0',0,0,40],foreman:['boss-idle-0',0,0,26],blaster:['blast-idle-0',0,0,40],lamp:['lamp-idle-0',0,0,24],time:['time-idle-0',0,0,26]};
+const PIC={smith:['smith-idle-0'],swordsmith:['sword-idle-0'],axesmith:['axe-idle-0'],spearwright:['spear-idle-0'],shieldwright:['shield-idle-0'],hammersmith:['hammer-idle-0'],miner:['miner-idle-0',0,0,34],carter:['cart-out-16',0,0,30],phantom:['phantom-strike-4',0,0,40],prospector:['pros-idle-0',0,0,40],foreman:['boss-idle-0',0,0,26],blaster:['blast-idle-0',0,0,40],lamp:['lamp-idle-0',0,0,24],time:['time-idle-0',0,0,26]};
 function portrait(h){const c=document.createElement('canvas');c.width=44;c.height=56;const x=c.getContext('2d');x.imageSmoothingEnabled=false;
   const F=place(h)==='forge',[n]=PIC[h.k],s=(F?fatlas:atlas).sprites[n];const k=Math.min(44/s[2],56/s[3],1.4),w=Math.round(s[2]*k),hh=Math.round(s[3]*k);x.drawImage(F?fimg:img,s[0],s[1],s[2],s[3],Math.round((44-w)/2),56-hh,w,hh);return c}
 function buildCards(){const box=$('#cards');box.innerHTML='';for(const h of HEROES){if(place(h)!==(S.view||'mine'))continue;const el=document.createElement('div');el.className='card';el.dataset.k=h.k;
@@ -483,13 +478,13 @@ function refreshForge(){drawTrack();const on=S.forge&&S.view==='forge';$('#fpane
   if(!known().length){$('#wpick').innerHTML='<span class="note">No recipes yet. The Blacksmith learns Swords at level '+SWORD_LV+'.</span>'}
   const ks=known();if(!ks.includes(S.pick.w))S.pick.w='sword';S.pick.n=Math.max(1,Math.min(S.pick.n,foldLimit()));
   if(ks.length)$('#wpick').innerHTML=ks.map(w=>`<button class="b sm${w===S.pick.w?' on':''}" data-w="${w}" ${F?'disabled':''}>${WEAP[w].n}</button>`).join('');
-  const n=S.pick.n,c=blankCost(n),ing=Math.min(Math.floor(S.ingots),Math.floor(c/INGOT)),ore=c-ing*INGOT;
+  const n=S.pick.n,ore=blankCost(n);
   $('#fsize').textContent=`${n} Fold${n>1?'s':''}`;$('#fminus').disabled=!!F||n<=1;$('#fplus').disabled=!!F||n>=foldLimit();
-  $('#fcost').textContent=`${fmtN(ore)} ore${ing?` + ${fmtN(ing)} ingots`:''} · best ★${maxStars(n)} ${GR[gradeOf(maxStars(n))].n}`;
+  $('#fcost').textContent=`${fmtN(ore)} ore · best ★${maxStars(n)} ${GR[gradeOf(maxStars(n))].n}`;
   $('#fheat').style.display=F?'none':'';$('#fheat').disabled=S.ore<ore||!ks.length;$('#fheat').textContent=S.ore<ore?`Need ${fmtN(ore)} ore`:'Heat blank';
   $('#fquench').style.display=F&&!F.done&&F.res.length?'':'none';
   const b=S.best[S.pick.w];$('#fbest').textContent=F?'Tap the bar or the scene to strike':b?`Best ${WEAP[S.pick.w].n}: ${GR[b.g].n} ★${b.stars}`:'';
-  $('#fstock').textContent=`${S.forged} forged${S.ingots>=1?` · ${fmtN(Math.floor(S.ingots))} ingots`:''}`}
+  $('#fstock').textContent=`${S.forged} forged`}
 $('#fpanel').addEventListener('click',e=>{const t=e.target.closest('button');if(!t)return;
   if(t.dataset.w&&!F){S.pick.w=t.dataset.w}else if(t.id==='fminus'&&!F)S.pick.n--;else if(t.id==='fplus'&&!F)S.pick.n++;else if(t.id==='fheat')heat();else if(t.id==='fquench')quench();refreshForge();save()});
 function setPlaces(){$('#places').classList.toggle('on',!!S.forge);$('#res').classList.toggle('three',!!S.forge);$('#wchip').style.display=S.forge?'':'none';
@@ -521,7 +516,6 @@ Promise.all([fetch('art/mine.json').then(r=>r.json()),pic('art/mine.png'),fetch(
   A.phantom=new Actor('phantom',e=>{if(e==='strike'){gain(phantomRate()*PHANTOM_EVERY,SPOT.phantom.pop,'#b8fff0');burst(SPOT.phantom.hit,6,['#8affe0','#d88038','#f0b070'],.7)}});
   A.boss=new Actor('boss');A.blast=new Actor('blast');A.lamp=new Actor('lamp');A.time=new Actor('time');
   A.smith=new Actor('smith',null,true);A.fire=new Actor('fire',null,true);
-  A.smelter=new Actor('smelter',e=>{if(e==='pour')smelterPoured()},true);
   for(const st of STATIONS)A[st.w]=new Actor(st.w,null,true);
   if(S.forged)fhintGone=true;setPlaces();
   awayGrant((Date.now()-(S.t||Date.now()))/1000);S.seen.miner=1;if(S.taps>=3){hintGone=true;$('#taphint').style.opacity=0}

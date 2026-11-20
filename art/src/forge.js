@@ -1,13 +1,11 @@
 // Ore Heroes: the forge, in the same ink style, lights and camera as the mine (art/src/mine.js).
 // A cut-away stone hall: a great furnace in the back wall, the Blacksmith's anvil in the middle, a weapon rack on the back wall,
-// the Smelter's crucible and ingot mould, and four little smithing stations (axe, spear, shield, warhammer) that open one by one.
+// and five little smithing stations (sword, axe, spear, shield, warhammer) that open one by one.
 // OH_LAYER picks what is drawn (none = the empty hall, the background):
 //   smith            you, the Blacksmith, at the anvil (clip: ready 0-1, strike 1-1.12, recover 1.12-1.5)
-//   smelter          the Smelter at his crucible (clip: idle 0-1, pour 1-2)
-//   st-axe|st-spear|st-shield|st-hammer   a station's bench and little anvil (drawn once the Blacksmith learns that weapon)
-//   axe|spear|shield|hammer               the smith who works that station (same clip as the Blacksmith)
+//   st-sword|st-axe|st-spear|st-shield|st-hammer   a station's bench and little anvil (drawn once the Blacksmith learns that weapon)
+//   sword|axe|spear|shield|hammer               the smith who works that station (same clip as the Blacksmith)
 //   w-sword|w-axe|w-spear|w-shield|w-hammer  one finished weapon hanging in its column of the rack
-//   ingot            one ingot lying in front of the mould
 //   fire             the furnace flames (clip: a 0-1 loop)
 module.exports = ({ makeBuilder, makeSculpt, KIT: K }) => {
   const PAL = [
@@ -126,12 +124,6 @@ module.exports = ({ makeBuilder, makeSculpt, KIT: K }) => {
     const COLS = { sword: -0.76, axe: -0.38, spear: 0, shield: 0.38, hammer: 0.76 };
     for (const c of Object.values(COLS)) S.box([RX + c, 2.1, RZ + 0.08], [0.03, 0.03, 0.06], IRON, { res: 0.01 });
 
-    // ---- the Smelter's spot: a crucible on a stand by the furnace and an ingot mould on the floor ----
-    const SX = -2.35, SZ = -2.0; // where he stands
-    S.box([SX + 0.55, 0.3, SZ - 0.2], [0.22, 0.3, 0.22], BRICK, { res: 0.03 }); // the crucible's little hearth
-    for (let i = 0; i < 3; i++) S.ball([SX + 0.48 + i * 0.07, 0.62, SZ - 0.2], 0.06, HOT, { res: 0.012 });
-    S.box([SX + 0.15, 0.06, SZ + 0.65], [0.36, 0.06, 0.16], IRON, { res: 0.015 }); // the mould
-    S.box([SX + 0.15, 0.1, SZ + 0.65], [0.3, 0.04, 0.1], DARK, { neg: true });
     S.bake();
 
     // =================== layers ===================
@@ -225,26 +217,9 @@ module.exports = ({ makeBuilder, makeSculpt, KIT: K }) => {
       pose = swingPose(1);
     }
 
-    // ---- the Smelter: blue shirt and a leather cap, tipping a crucible of molten metal into the mould ----
-    if (layer === 'smelter') {
-      const P = person(facing(SX, SZ, 1), { coat: { r: [42, 43, 44] }, apron: { r: [7, 8] } });
-      S.ball(P(0, 1.26, 0), [0.11, 0.06, 0.11], { r: [8, 9] }, { tag: 'body', res: 0.01 });
-      // the crucible in long tongs: both held out in front, over the mould
-      const C = P(-0.05, 0.62, 0.62);
-      S.lathe([C[0], C[1] - 0.12, C[2]], 0.22, t => 0.11 - 0.03 * t, { r: [30, 31, 18] }, { tag: 'cru', res: 0.01 });
-      S.lathe([C[0], C[1] + 0.07, C[2]], 0.03, 0.085, HOT, { tag: 'cru', res: 0.008 });
-      S.tube([P(0.1, 0.85, 0.25), [C[0], C[1], C[2]]], 0.015, 0.015, IRON, { tag: 'cru', res: 0.008 });
-      S.tube([P(0.12, 1.0, 0), P(0.1, 0.85, 0.25)], 0.035, 0.035, { r: [42, 43, 44] }, { tag: 'cru', res: 0.012 });
-      parts.body = { pivot: P(0, 0.2, 0), slices: 3 };
-      parts.cru = { pivot: P(0.12, 1.0, 0), parent: 'body', slices: 2 };
-      // clip: idle 0-1 (holds it), pour 1-2 (tips it toward the mould and back)
-      pose = (t, dt, pup) => { const b = Math.sin(t * Math.PI * 2); let p = 0;
-        if (t >= 1) { const k = Math.min(1, t - 1); p = k < 0.3 ? ease(k / 0.3) : k < 0.7 ? 1 : 1 - ease((k - 0.7) / 0.3); }
-        pup.pose.body = { rot: [0, 0, -p * 6 + b * 1] }; pup.pose.cru = { rot: [0, 0, -p * 28 + b * 1.5] }; };
-    }
-
-    // ---- the four stations and their smiths ----
+    // ---- the five stations and their smiths (the Swordsmith stands where the Smelter used to) ----
     const ST = {
+      sword:  { x: -2.35, z: -2.0, dir: 1, coat: { r: [42, 43, 44] }, hat: 'leather' },
       axe:    { x: 3.55, z: -0.9, dir: -1, coat: { r: [22, 23, 24] }, hat: 'cap' },
       spear:  { x: -3.65, z: -0.25, dir: 1, coat: { r: [45, 46, 47] }, hat: 'band' },
       shield: { x: 3.35, z: 1.05, dir: -1, coat: { r: [48, 49, 50] }, hat: 'helm' },
@@ -262,6 +237,7 @@ module.exports = ({ makeBuilder, makeSculpt, KIT: K }) => {
       }
       if (layer === k) {
         person(P, { coat: st.coat, apron: { r: [7, 8] }, wide: st.wide });
+        if (st.hat === 'leather') S.ball(P(0, 1.26, 0), [0.11, 0.06, 0.11], { r: [8, 9] }, { tag: 'body', res: 0.01 });
         if (st.hat === 'cap') S.ball(P(0, 1.25, 0), [0.11, 0.05, 0.11], { r: [22, 23] }, { tag: 'body', res: 0.01 });
         if (st.hat === 'band') S.lathe(P(0, 1.2, 0), 0.04, 0.105, { r: [39, 40] }, { tag: 'body', res: 0.008 });
         if (st.hat === 'helm') { S.ball(P(0, 1.24, 0), [0.115, 0.08, 0.115], IRON, { tag: 'body', res: 0.01 }); S.lathe(P(0, 1.2, 0), 0.015, 0.14, IRON, { tag: 'body', res: 0.008 }); }
@@ -271,12 +247,8 @@ module.exports = ({ makeBuilder, makeSculpt, KIT: K }) => {
       }
     }
 
-    // ---- a finished weapon in its rack column, or an ingot by the mould ----
+    // ---- a finished weapon in its rack column ----
     if (layer.startsWith('w-')) { const k = layer.slice(2); weapon(k, [RX + COLS[k], 2.08, RZ + 0.12], {}); }
-    if (layer === 'ingot') {
-      const I = [SX + 0.75, 0.05, SZ + 0.85];
-      S.box(I, [0.13, 0.045, 0.06], BRASS, { res: 0.008, rd: 0.015 });
-    }
 
     // ---- the furnace flames ----
     const FL = [];
