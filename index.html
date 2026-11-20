@@ -419,6 +419,14 @@ function drawFx(dt){
   for(let i=pops.length-1;i>=0;i--){const p=pops[i];p.t+=dt;if(p.t>1.1){pops.splice(i,1);continue}ctx.globalAlpha=Math.min(1,2.2-p.t*2);const y=Math.round(p.y-p.t*16);ctx.fillStyle='#120e0b';ctx.fillText(p.txt,p.x+1,y+1);ctx.fillStyle=p.col;ctx.fillText(p.txt,p.x,y)}
   ctx.globalAlpha=1;
 }
+// switching places slides the scenes like a strip: the mine on the left, the forge to its right
+let slide=null;
+const drawPlace=(v,dt)=>v==='forge'&&S.forge?drawForge(dt):draw(dt);
+function drawScene(dt){if(!slide)return drawPlace(S.view,dt);slide.t=Math.min(1,slide.t+dt/.45);
+  const k=slide.t<.5?2*slide.t*slide.t:1-Math.pow(-2*slide.t+2,2)/2,dir=S.view==='forge'?1:-1;
+  ctx.save();ctx.translate(Math.round(-dir*k*480),0);drawPlace(slide.from,dt);ctx.restore();
+  ctx.save();ctx.translate(Math.round(dir*(1-k)*480),0);drawPlace(S.view,dt);ctx.restore();
+  ctx.fillStyle='#000';ctx.fillRect(Math.round(dir>0?480*(1-k)-1:480*k-1),0,2,210);if(slide.t>=1)slide=null}
 function drawForge(dt){
   ctx.save();if(shake>0){ctx.translate(Math.round((Math.random()-.5)*5*shake),Math.round((Math.random()-.5)*5*shake));shake=Math.max(0,shake-dt)}
   const bg=fatlas.sprites.bg;ctx.drawImage(fimg,bg[0],bg[1],bg[2],bg[3],-3,-3,486,216);
@@ -487,7 +495,7 @@ $('#fpanel').addEventListener('click',e=>{const t=e.target.closest('button');if(
 function setPlaces(){$('#places').classList.toggle('on',!!S.forge);$('#res').classList.toggle('three',!!S.forge);$('#wchip').style.display=S.forge?'':'none';
   if(!S.forge)S.view='mine';for(const b of $('#places').children)b.classList.toggle('on',b.dataset.v===S.view);
   const done=S.view==='forge'?fhintGone:hintGone;$('#taphint').textContent=S.view==='forge'?'Tap to heat a blank, then strike':'Tap the rock';refreshForge();$('#taphint').style.opacity=done?0:1}
-$('#places').addEventListener('click',e=>{const b=e.target.closest('[data-v]');if(!b||!S.forge)return;S.view=b.dataset.v;pops.length=0;parts.length=0;setPlaces();buildCards();save()});
+$('#places').addEventListener('click',e=>{const b=e.target.closest('[data-v]');if(!b||!S.forge||b.dataset.v===S.view)return;slide={from:S.view,t:0};S.view=b.dataset.v;pops.length=0;parts.length=0;setPlaces();buildCards();save()});
 let resetArm=false;
 $('#reset').onclick=()=>{if(!resetArm){resetArm=true;$('#reset').textContent='Tap again to erase this save';setTimeout(()=>{resetArm=false;$('#reset').textContent='Start over'},3000);return}S=fresh();save();setPlaces();buildCards();toast('A fresh mine')};
 $('#savefile').onclick=async()=>{S.lastBackup=Date.now();save();const d=new Date(),name=`ore-heroes-save-${d.toISOString().slice(0,10)}.json`,blob=new Blob([JSON.stringify({game:'ore-heroes',v:1,saved:d.toISOString(),S})],{type:'application/json'}),file=new File([blob],name,{type:'application/json'});
@@ -498,7 +506,7 @@ $('#loadinput').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new 
 
 let last=0,lastSave=0,lastUi=0,hiddenAt=0;
 function frame(now){const dt=last?Math.min(.1,(now-last)/1000):0;last=now;clock+=dt;
-  for(const a of Object.values(A))a.step(dt);logic(dt);forgeLogic(dt);if(!S.forge&&lv('foreman'))openForge();S.view==='forge'&&S.forge?drawForge(dt):draw(dt);
+  for(const a of Object.values(A))a.step(dt);logic(dt);forgeLogic(dt);if(!S.forge&&lv('foreman'))openForge();drawScene(dt);
   if(now-lastUi>200){lastUi=now;$('#ore').textContent=fmtN(S.ore);if(S.forge){$('#wpns').textContent=fmtN(S.forged);if(S.view==='forge'&&!F)refreshForge()}$('#ops').textContent=fmtN(autoRate());revealCheck();refreshCards();$('#backup').textContent=S.lastBackup?`Last backup ${new Date(S.lastBackup).toLocaleDateString()}`:'Never backed up'}
   if(now-lastSave>5000){lastSave=now;save()}
   requestAnimationFrame(frame)}
