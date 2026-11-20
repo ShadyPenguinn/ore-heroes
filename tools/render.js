@@ -46,7 +46,7 @@ if (WHICH === 'mine') {
   clips({ ...H, fire: { idle: steps(0, 1, 12) } });
 } else if (WHICH === 'explore') {
   // art/src/explore.js: your heroes facing right, the cave ghouls and the Warden facing left; idle, a swing, and a fall
-  const H = {}, FIGHT = { idle: steps(0, 1, 8), hit: steps(1, 1.4, 6).concat([1.4]), fall: steps(2, 2.6, 6).concat([2.6]) };
+  const H = {}, FIGHT = { idle: steps(0, 1, 8), hit: steps(1, 1.4, 6).concat([1.4]), fall: steps(2, 2.6, 6).concat([2.6]), walk: steps(3, 4, 8) };
   for (const w of ['sword', 'axe', 'spear', 'shield', 'hammer']) { H['u-' + w] = FIGHT; H['e-' + w] = FIGHT; }
   for (const w of ['sword', 'axe', 'spear', 'hammer']) H['w-' + w] = FIGHT;
   clips(H);

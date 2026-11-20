@@ -3,7 +3,7 @@
 //   u-sword|u-axe|u-spear|u-shield|u-hammer   one of your heroes, facing right, at the front of your line
 //   e-sword|e-axe|e-spear|e-shield|e-hammer   a cave ghoul with that weapon, facing left, at the front of theirs
 //   w-...                                     the Warden (copper armour) with that weapon
-//   clip for all of them: idle 0-1, hit 1-1.4 (swing), fall 2-2.6 (topples and stays down)
+//   clip for all of them: idle 0-1, hit 1-1.4 (swing), fall 2-2.6 (topples and stays down), walk 3-4 (a loop of two strides)
 //   the game draws the same frames shifted sideways for the other places in each line
 const ease = x => x * x * (3 - 2 * x);
 module.exports = ({ makeBuilder, makeSculpt, KIT: K }) => {
@@ -99,10 +99,12 @@ module.exports = ({ makeBuilder, makeSculpt, KIT: K }) => {
       const side = m[1], w = m[2], dir = side === 'u' ? 1 : -1, X = side === 'u' ? UX : EX;
       const o = side === 'u' ? OUTFIT[w] : side === 'w' ? WARDEN : FOE, tag = 'body', wide = o.wide || 0.12;
       const P = (s, y, f) => [X + dir * f, y, FZ + s]; // s toward the camera, f toward the enemy
-      for (const d of [-0.07, 0.07]) {
-        S.tube([P(d, 0.2, 0), P(d, 0.6, 0)], 0.045, 0.05, PANTS, { tag, res: 0.012 });
-        S.box(P(d, 0.22, 0.04), [0.08, 0.035, 0.05], BOOT, { tag, res: 0.012 });
-      }
+      [-0.07, 0.07].forEach((d, li) => { // the legs are their own parts so they can walk
+        const lt = 'leg' + li;
+        S.tube([P(d, 0.2, 0), P(d, 0.6, 0)], 0.045, 0.05, PANTS, { tag: lt, res: 0.012 });
+        S.box(P(d, 0.22, 0.04), [0.08, 0.035, 0.05], BOOT, { tag: lt, res: 0.012 });
+        parts[lt] = { pivot: P(d, 0.6, 0), parent: 'body', slices: 2 };
+      });
       S.tube([P(0, 0.58, 0), P(0, 1.03, 0)], wide, wide, o.coat, { tag, res: 0.014 });
       S.box(P(0, 0.64, 0), [wide + 0.01, 0.03, wide + 0.01], { r: [7, 8] }, { tag, res: 0.01 });
       if (o.cape) S.box(P(0, 0.78, -0.13), [0.02, 0.28, 0.12], o.cape, { tag, res: 0.01 });
@@ -131,6 +133,9 @@ module.exports = ({ makeBuilder, makeSculpt, KIT: K }) => {
         if (t < 1) { const b = Math.sin(t * Math.PI * 2); pup.pose.body = { rot: [0, 0, dir * b * 1] }; pup.pose.arm = { rot: [0, 0, dir * 10 * b] }; }
         else if (t < 2) { const k = Math.min(1, (t - 1) / 0.4), a = k < 0.35 ? ease(k / 0.35) * 50 : k < 0.55 ? 50 - ease((k - 0.35) / 0.2) * 130 : -80 + ease((k - 0.55) / 0.45) * 80;
           pup.pose.arm = { rot: [0, 0, dir * a] }; pup.pose.body = { rot: [0, 0, -dir * (k > 0.35 && k < 0.8 ? 8 : 0)] }; }
+        else if (t >= 3) { const c = Math.sin((t - 3) * Math.PI * 4), u = Math.abs(Math.cos((t - 3) * Math.PI * 4)); // walk: two strides a second
+          pup.pose.leg0 = { rot: [0, 0, dir * 28 * c] }; pup.pose.leg1 = { rot: [0, 0, -dir * 28 * c] };
+          pup.pose.body = { rot: [0, 0, -dir * 3], scale: [1, 1 + 0.02 * u, 1] }; pup.pose.arm = { rot: [0, 0, dir * (8 - 14 * c)] }; }
         else { const k = Math.min(1, (t - 2) / 0.6); pup.pose.body = { rot: [0, 0, dir * 82 * ease(k)] }; pup.pose.arm = { rot: [0, 0, dir * 20 * k] }; }
       };
     }
