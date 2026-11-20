@@ -14,12 +14,12 @@ export async function start(scene2d) {
   const wallZ = (x, y) => { const r = 1 - Math.pow(y / 8.5, 2) * .45, rx = RX * r, q = Math.max(0, 1 - (x / rx) ** 2); return CZ - RZ * r * Math.sqrt(q) };
   const TUN = {x0: -2.35, x1: -.85, top: 2.5}; // the tunnel mouth in the back wall
   const rocks = [];
-  for (let iy = 0; iy < 11; iy++) {
+  for (let iy = 0; iy < 16; iy++) { // rows high enough to fill a tall full view
     const y = iy * .72, r = 1 - Math.pow(y / 8.5, 2) * .45, rx = RX * r, rz = RZ * r;
     for (let a = Math.PI - .3; a < 2 * Math.PI + .3; a += .9 / (rx + rz) * 2) {
       const aa = a + (rnd() - .5) * .08, x = rx * Math.cos(aa), z = CZ + rz * Math.sin(aa);
       if (x > TUN.x0 - .1 && x < TUN.x1 + .1 && y < TUN.top && z < -3) continue;
-      const s = (.75 + rnd() * .6) * (1 - y / 16);
+      const s = (.75 + rnd() * .6) * Math.max(.45, 1 - y / 16);
       rocks.push({p: [x, y + (rnd() - .5) * .2, z - .35], s: [s * 1.1, s * .85, s], r: rnd() * 6, c: col(.2, .15, .11, .45 + rnd() * .4)})
     }
   }
@@ -29,6 +29,7 @@ export async function start(scene2d) {
     if (x > -4 && x < -.2 && z > -5) continue; // keep the rails clear
     const s = .12 + rnd() * .25; rocks.push({p: [x, s * .3, z], s: [s * 1.3, s, s], r: rnd() * 6, c: col(.22, .17, .12, .7 + rnd() * .5)})
   }
+  for (let i = 0; i < 40; i++) { const x = (rnd() - .5) * 18, z = 3.2 + rnd() * 6, s = .1 + rnd() * .3; if (Math.abs(x + 3.2) < 1.2 && z < 4) continue; rocks.push({p: [x, s * .3, z], s: [s * 1.3, s, s], r: rnd() * 6, c: col(.22, .17, .12, .6 + rnd() * .5)}) }
   {
     const g = new THREE.IcosahedronGeometry(1, 0), m = new THREE.MeshStandardMaterial({roughness: 1, flatShading: true});
     const im = new THREE.InstancedMesh(g, m, rocks.length), o = new THREE.Object3D();
@@ -46,25 +47,26 @@ export async function start(scene2d) {
   frame(TUN.x0 - .1, TUN.x1 + .1, mouthZ, 2.45);
   frame(-6.2, -4.0, -3.2, 2.6);
   frame(1.3, 3.3, -3.6, 2.7);
-  box([3.9, 1.3, -1.2], [.18, 2.6, .18], WOOD); box([3.65, 2.55, -1.2], [.6, .12, .12], WOOD2); // the lantern post by the boulder
 
   // the rails, from the heap at the front back into the tunnel
   const PATH = [new THREE.Vector3(-3.0, 0, 2.3), new THREE.Vector3(-1.6, 0, mouthZ + .6), new THREE.Vector3(-1.6, 0, mouthZ - 5)];
   const segs = [PATH[0].distanceTo(PATH[1]), PATH[1].distanceTo(PATH[2])], LEN = segs[0] + segs[1];
   const along = u => { let d = u * LEN; const i = d > segs[0] ? 1 : 0; if (i) d -= segs[0]; const a = PATH[i], b = PATH[i + 1]; return {p: a.clone().lerp(b, d / segs[i]), dir: b.clone().sub(a).normalize()} };
-  {
-    const iron = new THREE.MeshStandardMaterial({color: 0x5a606a, metalness: .5, roughness: .5}), sleeper = new THREE.MeshStandardMaterial({color: 0x3a2614, roughness: 1});
-    for (let i = 0; i < 2; i++) {
-      const a = PATH[i], b = PATH[i + 1], d = b.clone().sub(a), L = d.length(), ang = Math.atan2(d.x, d.z), side = new THREE.Vector3(Math.cos(ang), 0, -Math.sin(ang));
-      for (const s of [-.32, .32]) { const r = new THREE.Mesh(new THREE.BoxGeometry(.06, .07, L), iron); r.position.copy(a.clone().lerp(b, .5).addScaledVector(side, s)).setY(.1); r.rotation.y = ang; r.receiveShadow = true; scene.add(r) }
-      for (let t = .2; t < L; t += .55) { const k = new THREE.Mesh(new THREE.BoxGeometry(.95, .06, .18), sleeper); k.position.copy(a.clone().lerp(b, t / L)).setY(.04); k.rotation.y = ang; k.receiveShadow = true; scene.add(k) }
-    }
-  }
-
-  const G = await loadAll(['Barbarian', 'Druid', 'Knight', 'Engineer', 'pickaxe', 'rocks', 'rocks_gold', 'Copper_Nugget_Large', 'Copper_Bar', 'anim_tools', 'anim_general', 'anim_move']);
-  const [Druid2, Knight2, Engineer2] = await Promise.all(['Druid', 'Knight', 'Engineer'].map(load));
+  const G = await loadAll(['Barbarian', 'Hiker', 'Farmer_A', 'Caveman', 'Engineer', 'Lorekeeper', 'Mage', 'pickaxe', 'rocks', 'rocks_gold', 'Copper_Nugget_Large', 'Copper_Nuggets', 'Copper_Bar',
+    'train_tender_empty', 'tracks_straight', 'lantern_hanging', 'lantern_standing', 'post_lantern', 'dynamite', 'hourglass', 'bucket_pickaxes', 'crates_stacked', 'barrel_small',
+    'anim_tools', 'anim_general', 'anim_move']);
   const clips = [...G.anim_tools.animations, ...G.anim_general.animations, ...G.anim_move.animations];
-  const prop = (g, pos, s = 1, ry = 0) => { const o = g.scene.clone(); o.position.set(...pos); o.scale.setScalar(s); o.rotation.y = ry; shadows(o); scene.add(o); return o };
+  const prop = (g, pos, s = 1, ry = 0, parent = scene) => { const o = g.scene.clone(); o.position.set(...pos); o.scale.setScalar(s); o.rotation.y = ry; shadows(o); parent.add(o); return o };
+
+  // the rails: KayKit track pieces laid along the path, stretched a touch so each run ends on a whole piece
+  for (let i = 0; i < 2; i++) {
+    const a = PATH[i], b = PATH[i + 1], d = b.clone().sub(a), L = d.length(), n = Math.max(1, Math.round(L / 1.8)), ang = Math.atan2(d.x, d.z);
+    for (let k = 0; k < n; k++) { const o = prop(G.tracks_straight, [0, 0, 0], 1.8, ang); o.scale.z = L / n; o.position.copy(a.clone().lerp(b, (k + .5) / n)); o.traverse(m => { if (m.isMesh) m.castShadow = false }) }
+  }
+  // odds and ends: a bucket of picks, crates and a barrel by the heap
+  prop(G.bucket_pickaxes, [-6.1, 0, 1.3], .55, .6);
+  prop(G.crates_stacked, [6.4, 0, -.6], .55, -.5);
+  prop(G.barrel_small, [-6.3, 0, -.4], .6, 0);
 
   // the copper vein in the back wall, the Miner's boulder, the Prospector's rock and the ore heap
   const copper = new THREE.MeshStandardMaterial({color: 0xd88038, emissive: 0x4a1e08, roughness: .55, metalness: .3, flatShading: true});
@@ -76,54 +78,48 @@ export async function start(scene2d) {
 
   // the cart, with its load of ore when it comes back full
   const cart = new THREE.Group(); scene.add(cart);
-  {
-    const body = new THREE.MeshStandardMaterial({color: 0x6e4628, roughness: .9}), band = new THREE.MeshStandardMaterial({color: 0x3a3e46, metalness: .5, roughness: .5});
-    const add = (geo, m, p, r) => { const o = new THREE.Mesh(geo, m); o.position.set(...p); if (r) o.rotation.set(...r); o.castShadow = o.receiveShadow = true; cart.add(o); return o };
-    add(new THREE.BoxGeometry(.9, .1, 1.2), body, [0, .32, 0]);
-    for (const s of [-1, 1]) { add(new THREE.BoxGeometry(.08, .5, 1.2), body, [s * .45, .6, 0]); add(new THREE.BoxGeometry(.9, .5, .08), body, [0, .6, s * .6]) }
-    for (const s of [-1, 1]) add(new THREE.BoxGeometry(1.0, .07, 1.3), band, [0, .55 + s * .15, 0]);
-    for (const sx of [-1, 1]) for (const sz of [-1, 1]) add(new THREE.CylinderGeometry(.16, .16, .08, 12), band, [sx * .42, .17, sz * .4], [0, 0, Math.PI / 2]);
-  }
-  const load3 = new THREE.Group(); cart.add(load3);
-  for (let i = 0; i < 6; i++) { const o = G.Copper_Nugget_Large.scene.clone(); o.position.set((rnd() - .5) * .5, .75 + rnd() * .1, (rnd() - .5) * .7); o.scale.setScalar(.9); o.rotation.y = rnd() * 6; load3.add(o) }
+  prop(G.train_tender_empty, [0, 0, 0], 2, 0, cart);
+  const load3 = prop(G.Copper_Nuggets, [0, .62, 0], .8, 0, cart);
 
   // the dynamite bundle and its fuse
-  const red = new THREE.MeshStandardMaterial({color: 0xa82a1c, roughness: .7});
   const DYN = new THREE.Vector3(5.4, 0, 1.6), FUSE0 = new THREE.Vector3(4.2, .03, 2.4);
-  for (const [dx, dz] of [[0, 0], [.13, .05], [.06, .14]]) { const o = new THREE.Mesh(new THREE.CylinderGeometry(.07, .07, .5, 10), red); o.position.set(DYN.x + dx, .25, DYN.z + dz); o.castShadow = true; scene.add(o) }
+  prop(G.dynamite, [DYN.x, 0, DYN.z], .28, .4);
   const fuse = new THREE.Mesh(new THREE.BoxGeometry(1, .025, .025), new THREE.MeshStandardMaterial({color: 0x4a3a2e})); scene.add(fuse);
   const spark = new THREE.Mesh(new THREE.SphereGeometry(.05, 8, 6), new THREE.MeshBasicMaterial({color: 0xfff2c0})); scene.add(spark);
   const sparkLight = new THREE.PointLight(0xffb050, 0, 2, 2); scene.add(sparkLight);
   const boom = new THREE.PointLight(0xffd090, 0, 9, 1.6); boom.position.set(5.3, 1.2, 1.8); scene.add(boom);
 
+  // the lantern post by the boulder
+  prop(G.post_lantern, [3.75, 0, -1.2], .8, -Math.PI / 2);
   // the hourglass on the Time Miner's ledge
   const ledge = new THREE.Mesh(new THREE.BoxGeometry(2.2, .8, 1.4), new THREE.MeshStandardMaterial({color: 0x2a2018, roughness: 1, flatShading: true})); ledge.position.set(4.9, .4, -3.3); ledge.castShadow = ledge.receiveShadow = true; scene.add(ledge);
   const glass = new THREE.Group(); glass.position.set(5.6, .8, -3.1); scene.add(glass);
-  { const gm = new THREE.MeshStandardMaterial({color: 0xb89aff, emissive: 0x7a4ad8, emissiveIntensity: 1.2, transparent: true, opacity: .85}), wm = new THREE.MeshStandardMaterial({color: 0x4a3a2e});
-    for (const s of [-1, 1]) { const c = new THREE.Mesh(new THREE.ConeGeometry(.16, .28, 12), gm); c.position.y = .36 + s * .15; c.rotation.x = s > 0 ? Math.PI : 0; glass.add(c); const p = new THREE.Mesh(new THREE.CylinderGeometry(.2, .2, .04, 12), wm); p.position.y = .36 + s * .3; glass.add(p) } }
+  { const g = prop(G.hourglass, [0, -.32, 0], .32, 0, glass); glass.position.y = .8 + .32 } // turns about its middle
   const timeLight = new THREE.PointLight(0xb89aff, 0, 4, 1.8); timeLight.position.set(5.2, 1.6, -2.6); scene.add(timeLight);
 
   // the light: a dim key for shadows, and the lanterns doing most of the work
   scene.add(new THREE.HemisphereLight(0x6a6a7a, 0x1a120c, .3));
   const key = new THREE.DirectionalLight(0xffd8b0, .35); key.position.set(3, 9, 7); key.castShadow = true; key.shadow.mapSize.set(1024, 1024);
   Object.assign(key.shadow.camera, {left: -9, right: 9, top: 7, bottom: -6, near: 1, far: 30}); key.shadow.bias = -.0005; scene.add(key);
-  const lampGlass = new THREE.MeshStandardMaterial({color: 0xffd060, emissive: 0xffa040, emissiveIntensity: 2});
-  const LANTERNS = [[-5.1, 2.25, -3.05], [-1.6, 2.15, mouthZ + .12], [2.3, 2.35, -3.45], [3.45, 2.3, -1.2]].map(p => {
-    const o = new THREE.Mesh(new THREE.BoxGeometry(.18, .26, .18), lampGlass); o.position.set(...p); scene.add(o);
-    const l = new THREE.PointLight(0xffb060, 8, 7, 1.6); l.position.set(p[0], p[1] - .2, p[2] + .4); scene.add(l); return l
+  const POST = [3.45, 2.1, -1.2];
+  const MOUTH = [-1.6, 2.15, mouthZ + .12]; // the Carter walks right under this one: keep it softer
+  const LANTERNS = [[-5.1, 2.25, -3.05], MOUTH, [2.3, 2.35, -3.45], POST].map(p => {
+    if (p !== POST) { const o = prop(G.lantern_hanging, [p[0], p[1] - .35, p[2]], .42); o.traverse(m => { if (m.isMesh) m.castShadow = false }) }
+    const l = new THREE.PointLight(0xffb060, 8, 7, 1.6); l.position.set(p[0], p[1] - .2, p[2] + .4); l.k = p === MOUTH ? .55 : 1; scene.add(l); return l
   });
+  { const n = new THREE.PointLight(0xffa860, 4, 12, 1.4); n.position.set(0, 2.5, 6.5); scene.add(n) } // a faint glow on the floor near the front
   const front = new THREE.PointLight(0xffc890, 6, 8, 1.5); front.position.set(.6, 2.6, 1.8); scene.add(front); // a little light on the Miner
 
   // ---- the heroes ----
-  const tool = G.pickaxe.scene, lantern = new THREE.Mesh(new THREE.BoxGeometry(.16, .22, .16), lampGlass);
+  const tool = G.pickaxe.scene, lantern = G.lantern_standing.scene;
   const H = {
     miner: {root: character(scene, G.Barbarian, [0, 0, -.4], Math.PI / 2, tool)},
-    pros: {root: character(scene, G.Druid, [-5.0, 0, -2.5], -Math.PI / 2 - .2, tool)},
-    boss: {root: character(scene, G.Knight, [-3.8, 0, -.5], Math.PI / 2 - .2, null, 1, 0x9a9aaa)},
+    pros: {root: character(scene, G.Hiker, [-5.0, 0, -2.5], -Math.PI / 2 - .2, tool)},
+    boss: {root: character(scene, G.Farmer_A, [-3.8, 0, -.5], Math.PI / 2 - .2)},
     blast: {root: character(scene, G.Engineer, [4.5, 0, 1.4], Math.PI / 2 + .2, null)},
-    lamp: {root: character(scene, Druid2, [2.7, 0, -2.9], 0, lantern, 1, 0xe0c070)},
-    time: {root: character(scene, Knight2, [4.5, .8, -3.3], .2, null, 1, 0xa890ff)},
-    carter: {root: character(scene, Engineer2, [0, 0, 0], 0, null, 1, 0xc0c8a0)},
+    lamp: {root: character(scene, G.Lorekeeper, [2.7, 0, -2.9], 0, lantern, .3)},
+    time: {root: character(scene, G.Mage, [4.5, .8, -3.3], .2, null)},
+    carter: {root: character(scene, G.Caveman, [0, 0, 0], 0, null)},
   };
   for (const h of Object.values(H)) h.rig = new Rig(h.root, clips);
   // the Phantom Pick: a ghostly pickaxe swinging at the vein on its own
@@ -172,7 +168,7 @@ export async function start(scene2d) {
       { const a = s.a.phantom, ang = a.seg === 'strike' ? 1.1 - 1.9 * a.k : a.seg === 'recover' ? -.8 + 1.9 * a.k : 1.1 + .08 * Math.sin(t * 2);
         ghost.visible = !!s.hired.phantom; ghost.rotation.z = ang; ghost.position.y = 2.4 + .08 * Math.sin(t * 1.6); ghostLight.intensity = s.hired.phantom ? 3 + Math.sin(t * 3) : 0 }
       // the lanterns burn brighter with the Lamplighter's levels
-      const L = s.lamp || 0; LANTERNS.forEach((l, i) => l.intensity = (7 + Math.min(8, L * .35)) * (1 + .06 * Math.sin(t * 2.3 + i * 1.7)));
+      const L = s.lamp || 0; LANTERNS.forEach((l, i) => l.intensity = l.k * (7 + Math.min(8, L * .35)) * (1 + .06 * Math.sin(t * 2.3 + i * 1.7)));
       // the fuse burns down to the bundle, then the blast
       if (s.hired.blaster && s.fuse >= 0 && s.boomT > .5) {
         v.copy(FUSE0).lerp(DYN.clone().setY(.03), s.fuse); const d = DYN.clone().setY(.03).sub(v), L2 = d.length();

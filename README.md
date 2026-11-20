@@ -41,3 +41,9 @@ python3 tools/pack.py mine   # writes art/mine.png and art/mine.json (or forge)
 The mine (`mine3d.js`) and the forge (`forge3d.js`) are drawn live in 3D with three.js, sharing `kit3d.js`. The mine is a lantern-lit cave built in code; the game's own clocks (swings, cart trips, blasts) drive the 3D heroes. Both use KayKit models and KayKit's own animations by Kay Lousberg (CC0, see `models/KayKit-License.txt`). The Blacksmith (Barbarian) swings on every strike and his hammer lands on the anvil; the Swordsmith (Knight) hones at the grindstone. The 2D canvas draws on top of it for sparks, numbers and the rack glints. three.js r160 is vendored in `lib/` so the game works offline. Without WebGL the game falls back to the 2D art.
 
 `models/` holds the KayKit files converted to .glb, with the animation files cut down to the clips the game uses.
+
+Each hero has their own KayKit character. Mine: Miner (Barbarian), Carter (Caveman), Prospector (Hiker), Foreman (Farmer), Blaster (Engineer), Lamplighter (Lorekeeper), Time Miner (Mage). Forge: Blacksmith (Barbarian), Swordsmith (Knight), Axesmith (Rogue), Spearwright (Ranger), Shieldwright (Cleric), Hammersmith (Hoarder). The mine's cart, rails, lanterns, dynamite, hourglass and props are KayKit pieces too, and the forge rack shows KayKit's weapon models.
+
+The hero card portraits and weapon icons in `art/icons/` are rendered from the same models: serve the repo on port 8765 and run `node tools/icons.js` after changing a model.
+
+The art box can be taller than the game's 480x210 stage: the stage is scaled to fit (cropping a little off the sides at most) and the 3D scenes show more cave around it. The corner button opens full view, where the art fills the screen and tapping still mines.

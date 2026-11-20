@@ -1,0 +1,47 @@
+<!doctype html><meta charset=utf-8>
+<!-- Renders the hero portraits and weapon icons from the KayKit models (run tools/icons.js; it saves them into art/icons/). -->
+<script type=importmap>{"imports":{"three":"../lib/three.module.min.js"}}</script>
+<script type=module>
+import * as THREE from 'three';
+import {GLTFLoader} from '../lib/addons/loaders/GLTFLoader.js';
+const L = new GLTFLoader(), get = n => L.loadAsync('../models/' + n + '.glb');
+const r = new THREE.WebGLRenderer({antialias: true, alpha: true, preserveDrawingBuffer: true});
+r.outputColorSpace = THREE.SRGBColorSpace; r.toneMapping = THREE.ACESFilmicToneMapping;
+const anims = [...(await get('anim_general')).animations];
+// heroes: the model, what they hold, and a tint for the ghost
+const HEROES = {
+  miner: ['Barbarian', 'pickaxe'], carter: ['Caveman'], prospector: ['Hiker', 'pickaxe'], foreman: ['Farmer_A'], blaster: ['Engineer'],
+  lamp: ['Lorekeeper', 'lantern_standing', .3], time: ['Mage'],
+  smith: ['Barbarian', 'hammer'], swordsmith: ['Knight', 'sword_A', .6], axesmith: ['Rogue'], spearwright: ['Ranger'], shieldwright: ['Cleric'], hammersmith: ['Hoarder'],
+};
+const WEAPONS = {sword: 'sword_A', axe: 'axe_A', spear: 'spear_A', shield: 'shield_A', hammer: 'hammer_A', pick: 'pickaxe'};
+function lights(sc) { sc.add(new THREE.HemisphereLight(0xfff4e8, 0x40302a, 1.6)); const d = new THREE.DirectionalLight(0xffe0c0, 2.4); d.position.set(2, 3, 4); sc.add(d); const b = new THREE.DirectionalLight(0xff9a50, 1.2); b.position.set(-3, 1, -2); sc.add(b) }
+function shot(sc, cam, w, h) { r.setSize(w, h, false); r.setPixelRatio(1); r.setClearColor(0, 0); r.render(sc, cam); return r.domElement.toDataURL('image/png') }
+const out = {};
+for (const [k, [m, held, hs = 1]] of Object.entries(HEROES)) {
+  const g = await get(m), sc = new THREE.Scene(); lights(sc);
+  const root = g.scene; root.traverse(n => { if (/^Icosphere/.test(n.name)) n.visible = false }); root.rotation.y = .35; sc.add(root);
+  if (held) { const h = (await get(held)).scene; h.scale.setScalar(hs); root.getObjectByName('handslotr').add(h) }
+  const mix = new THREE.AnimationMixer(root); mix.clipAction(anims.find(c => c.name === 'Idle_A')).play(); mix.update(.3);
+  root.updateMatrixWorld(true);
+  const head = new THREE.Vector3(); root.getObjectByName('head').getWorldPosition(head);
+  // head and shoulders: aim a little above the head bone
+  const cam = new THREE.PerspectiveCamera(24, 88 / 112, .1, 50), c = head.clone().add(new THREE.Vector3(0, .35, 0));
+  cam.position.copy(c).add(new THREE.Vector3(0, .25, 5.2)); cam.lookAt(c.clone().add(new THREE.Vector3(0, -.12, 0)));
+  out['h-' + k] = shot(sc, cam, 88, 112);
+}
+// the Phantom Pick: the pickaxe as a ghost
+{ const sc = new THREE.Scene(); lights(sc); const p = (await get('pickaxe')).scene;
+  p.traverse(n => { if (n.isMesh) n.material = new THREE.MeshStandardMaterial({color: 0x8affe0, emissive: 0x3ac0a8, emissiveIntensity: 1, transparent: true, opacity: .9}) });
+  sc.add(p); fit(sc, p, 88, 112, -.7); out['h-phantom'] = shot(sc, fit.cam, 88, 112) }
+function fit(sc, o, w, h, tilt, k = .4) {
+  o.rotation.z = tilt; o.updateMatrixWorld(true); const b = new THREE.Box3().setFromObject(o), c = b.getCenter(new THREE.Vector3()), s = b.getSize(new THREE.Vector3());
+  const cam = new THREE.PerspectiveCamera(20, w / h, .1, 100), need = Math.max(s.y, s.x * h / w) * k / Math.tan(THREE.MathUtils.degToRad(10));
+  cam.position.copy(c).add(new THREE.Vector3(0, 0, need + s.z)); cam.lookAt(c); fit.cam = cam
+}
+for (const [w, m] of Object.entries(WEAPONS)) {
+  const sc = new THREE.Scene(); lights(sc); const o = (await get(m)).scene; sc.add(o);
+  o.rotation.y = w === 'shield' ? .5 : .25; fit(sc, o, 80, 80, w === 'shield' ? 0 : -Math.PI / 4, w === 'shield' ? .5 : .4); out['w-' + w] = shot(sc, fit.cam, 80, 80)
+}
+window.ICONS = out;
+</script>
