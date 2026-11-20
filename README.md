@@ -36,8 +36,8 @@ node tools/render.js mine    # or forge; about 1.5 minutes, into tools/frames/<s
 python3 tools/pack.py mine   # writes art/mine.png and art/mine.json (or forge)
 ```
 
-## The forge in 3D
+## The mine and the forge in 3D
 
-The forge is drawn live in 3D with three.js (`forge3d.js`), using KayKit models and KayKit's own animations by Kay Lousberg (CC0, see `models/KayKit-License.txt`). The Blacksmith (Barbarian) swings on every strike and his hammer lands on the anvil; the Swordsmith (Knight) hones at the grindstone. The 2D canvas draws on top of it for sparks, numbers and the rack glints. three.js r160 is vendored in `lib/` so the game works offline. Without WebGL the game falls back to the 2D forge art.
+The mine (`mine3d.js`) and the forge (`forge3d.js`) are drawn live in 3D with three.js, sharing `kit3d.js`. The mine is a lantern-lit cave built in code; the game's own clocks (swings, cart trips, blasts) drive the 3D heroes. Both use KayKit models and KayKit's own animations by Kay Lousberg (CC0, see `models/KayKit-License.txt`). The Blacksmith (Barbarian) swings on every strike and his hammer lands on the anvil; the Swordsmith (Knight) hones at the grindstone. The 2D canvas draws on top of it for sparks, numbers and the rack glints. three.js r160 is vendored in `lib/` so the game works offline. Without WebGL the game falls back to the 2D art.
 
 `models/` holds the KayKit files converted to .glb, with the animation files cut down to the clips the game uses.

@@ -1,38 +1,10 @@
 // The forge in live 3D: KayKit models (CC0, Kay Lousberg) with KayKit's own animations, drawn by three.js under the game's 2D canvas.
 // The game keeps running its forge logic; this only draws. If WebGL or the models fail, the game keeps its 2D forge.
 import * as THREE from 'three';
-import {GLTFLoader} from './lib/addons/loaders/GLTFLoader.js';
-
-const W = 480, H = 210;
-const BASE = window.OH_MODELS || 'models/';
-const loader = new GLTFLoader();
-// the Claude copy can't serve .glb files, so there each model comes as base64 inside a .json file
-async function load(name) {
-  if (window.OH_MODELS_JSON) {
-    const {glb} = await (await fetch(BASE + name + '.json')).json();
-    const bin = Uint8Array.from(atob(glb), c => c.charCodeAt(0)).buffer;
-    return new Promise((ok, bad) => loader.parse(bin, '', ok, bad));
-  }
-  return new Promise((ok, bad) => loader.load(BASE + name + '.glb', ok, undefined, bad));
-}
-const shadows = o => o.traverse(n => { if (n.isMesh) { n.castShadow = true; n.receiveShadow = true } });
+import {W, H, load, loadAll, shadows, stage} from './kit3d.js';
 
 export async function start(scene2d) {
-  const canvas = document.createElement('canvas');
-  canvas.id = 'gl';
-  canvas.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;display:none;image-rendering:auto';
-  scene2d.prepend(canvas);
-  const renderer = new THREE.WebGLRenderer({canvas, antialias: true, powerPreference: 'low-power'});
-  renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
-  renderer.outputColorSpace = THREE.SRGBColorSpace;
-  renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.05;
-  renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-  const scene = new THREE.Scene(); scene.background = new THREE.Color(0x0a0807);
-  // the same framing as the game's other scenes: a 50 mm lens across the width
-  const cam = new THREE.PerspectiveCamera(30, W / H, .1, 100);
-  cam.fov = 2 * Math.atan(Math.tan(THREE.MathUtils.degToRad(19.8)) / (W / H)) * 180 / Math.PI;
-  const CAM = new THREE.Vector3(0, 5.2, 17), LOOK = new THREE.Vector3(0, 2.1, -0.6);
-  cam.position.copy(CAM); cam.lookAt(LOOK); cam.updateProjectionMatrix(); cam.updateMatrixWorld();
+  const S3 = stage(scene2d, 'gl'), {scene, cam} = S3;
 
   // lights: a warm furnace glow, lamps over each workplace, a cool fill and one shadow-casting key
   scene.add(new THREE.HemisphereLight(0x8a8a9a, 0x20160f, .45));
@@ -64,7 +36,7 @@ export async function start(scene2d) {
   { const f = new THREE.Mesh(new THREE.PlaneGeometry(40, 40), new THREE.MeshStandardMaterial({color: 0x1a120d, roughness: 1})); f.rotation.x = -Math.PI / 2; f.position.y = -.12; f.receiveShadow = true; scene.add(f) }
 
   const names = ['furnace_forge', 'anvil', 'bucket_metal', 'tongs', 'grindstone', 'rocks', 'rocks_gold', 'Copper_Bar', 'sword_A', 'hammer', 'Barbarian', 'Knight', 'Engineer', 'Druid', 'anim_tools', 'anim_general'];
-  const G = Object.fromEntries((await Promise.all(names.map(load))).map((g, i) => [names[i], g]));
+  const G = await loadAll(names);
   const clips = [...G.anim_tools.animations, ...G.anim_general.animations], clip = n => clips.find(c => c.name === n);
   function prop(name, pos, s = 1, rot = [0, 0, 0]) { const o = G[name].scene.clone(); o.position.set(...pos); o.scale.setScalar(s); o.rotation.set(...rot); shadows(o); scene.add(o); return o }
   prop('furnace_forge', [-1.2, 0, -3.1]);
@@ -153,23 +125,18 @@ export async function start(scene2d) {
     s.alt.reset().play(); s.alt.crossFadeFrom(s.work, .3, false); s.altT = kind === 'study' ? 2.6 : 1.6
   }
 
-  const v = new THREE.Vector3();
-  function proj(x, y, z) { v.set(x, y, z).project(cam); return [(v.x + 1) / 2 * W, (1 - v.y) / 2 * H] }
+  const proj = S3.proj;
   // where the game draws its 2D effects over the 3D scene
   const anchors = {hit: proj(1.22, .7, -.49), pop: proj(1.2, 1.9, -.5), sign: {}, rack: {}};
   for (const [w, d] of Object.entries(STN)) anchors.sign[w] = proj(d.pos[0], 0, d.pos[2]);
   for (const [w, x] of Object.entries(RACK)) anchors.rack[w] = proj(x, 1.3, -3.8);
 
-  const resize = () => { const r = canvas.getBoundingClientRect(); if (r.width) renderer.setSize(r.width, r.height, false) };
-  new ResizeObserver(resize).observe(scene2d); resize();
-  let shown = false, t = 0;
+  let t = 0;
   return {
     anchors, strike, act, _dbg: {scene, cam, smith, swings, THREE},
     // ox: the scene's offset in 480-wide units while the places slide; st: what the game shows this frame
     render(dt, ox, s) {
       t += dt;
-      if (!shown) { canvas.style.display = ''; shown = true; resize() }
-      canvas.style.transform = ox ? `translateX(${ox / W * 100}%)` : '';
       setReady(!!s.hot); blank.visible = !!s.hot; blankLight.intensity = s.hot ? 5 + Math.sin(t * 6) : 0;
       for (const [w, d] of Object.entries(st)) {
         const open = !!s.open[w], hired = !!s.hired[w]; d.propObj.visible = open; d.h.root.visible = open && hired;
@@ -179,9 +146,8 @@ export async function start(scene2d) {
       for (const w in rack) rack[w].visible = !!s.best[w];
       smithStep(dt); smith.mix.update(dt);
       furnace.intensity = 40 + 6 * Math.sin(t * 11) + 4 * Math.sin(t * 27);
-      cam.position.set(CAM.x + (s.shake ? (Math.random() - .5) * .25 * s.shake : 0), CAM.y + (s.shake ? (Math.random() - .5) * .25 * s.shake : 0), CAM.z);
-      renderer.render(scene, cam)
+      S3.draw(ox, s.shake)
     },
-    hide() { if (shown) { canvas.style.display = 'none'; shown = false } }
+    hide: S3.hide
   }
 }

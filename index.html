@@ -423,6 +423,7 @@ function cartFrame(p){const n=atlas.cart.z.length-1;let dir,fi;
   const ax=(s)=>s[4]+s[2]/2,ay=(s)=>s[5]+s[3],x=ax(A0)+(ax(A1)-ax(A0))*f,y=ay(A0)+(ay(A1)-ay(A0))*f,pick=f<.5?A0:A1,name=f<.5?atlas.cart[dir][i]:atlas.cart[dir][i+1];
   return{name,x:x-ax(pick),y:y-ay(pick),a:Math.min(1,fi/1.5)}}
 function draw(dt){
+  if(window.M3D)return drawMine3D(dt);
   ctx.save();if(shake>0){ctx.translate(Math.round((Math.random()-.5)*6*shake),Math.round((Math.random()-.5)*6*shake));shake=Math.max(0,shake-dt)}
   const bg=atlas.sprites.bg;ctx.drawImage(img,bg[0],bg[1],bg[2],bg[3],-3,-3,486,216);
   // the Lamplighter: the lanterns burn brighter with his levels
@@ -447,6 +448,20 @@ function draw(dt){
   if(lv('time')){glow(392,70,30+3*Math.sin(clock*1.5),'184,154,255',.18+(A.time.seg==='turn'?.2:0));A.time.draw()}else waitingSpot(SPOT.time.sign,isNext('time'));
   drawFx(dt);ctx.restore();
 }
+// the mine in live 3D (mine3d.js): the game's clocks drive the 3D heroes; numbers, chips, glows and "?" signs draw on top
+let mineDrawn=false;
+function drawMine3D(dt){const D=M3D,a=D.anchors;mineDrawn=true;
+  const st=h=>({seg:h.seg,k:Math.min(1,h.t/DUR[h.h][h.seg])}),L=lv('lamp');
+  const hired={miner:1,carter:lv('carter'),phantom:lv('phantom'),pros:lv('prospector'),boss:lv('foreman'),blast:lv('blaster'),blaster:lv('blaster'),lamp:L,time:lv('time')};
+  D.render(dt,placeOX,{hired,a:{miner:st(A.miner),pros:st(A.pros),phantom:st(A.phantom),boss:st(A.boss),blast:st(A.blast),lamp:st(A.lamp),time:st(A.time)},
+    cart:lv('carter')?acc.carter/TRIP:null,lamp:L,fuse:Math.min(1,acc.blaster/BLAST),boomT,shake});
+  if(shake>0)shake=Math.max(0,shake-dt);
+  const nx=nextHero(),isNext=k=>!!(nx&&nx.k===k&&S.seen[k]);
+  if(lv('phantom'))glow(a.phantom.glow[0],a.phantom.glow[1],26,'138,255,224',.1+.05*Math.sin(clock*3));
+  for(const [k,sp] of [['phantom','phantom'],['lamp','lamp'],['prospector','pros'],['foreman','foreman'],['carter','carter'],['blaster','blaster'],['time','time']])if(!lv(k))waitingSpot(a[sp].sign,isNext(k));
+  if(lv('blaster')){if(boomT<.35){const k=boomT/.35;glow(a.blaster.hit[0],a.blaster.hit[1]-6,10+46*k,'255,230,170',1-k)}boomT+=dt}
+  if(lv('time'))glow(a.time.glow[0],a.time.glow[1],26,'184,154,255',.12+(A.time.seg==='turn'?.15:0));
+  drawFx(dt)}
 function drawFx(dt){
   // chips and ore numbers, rising from above each hero's ore
   for(let i=parts.length-1;i>=0;i--){const p=parts[i];p.life-=dt;if(p.life<=0){parts.splice(i,1);continue}p.vy+=220*dt;p.x+=p.vx*dt;p.y+=p.vy*dt;ctx.fillStyle=p.c;ctx.fillRect(Math.round(p.x),Math.round(p.y),2,2)}
@@ -458,7 +473,7 @@ function drawFx(dt){
 let slide=null;
 const drawPlace=(v,dt)=>v==='forge'&&S.forge?drawForge(dt):v==='army'&&S.army?drawArmy(dt):v==='explore'&&S.explore?drawExplore(dt):draw(dt);
 let placeOX=0,forgeDrawn=false;
-function drawScene(dt){ctx.clearRect(0,0,480,210);forgeDrawn=false;placeOX=0;drawScene2(dt);if(!forgeDrawn&&window.F3D)F3D.hide()}
+function drawScene(dt){ctx.clearRect(0,0,480,210);forgeDrawn=mineDrawn=false;placeOX=0;drawScene2(dt);if(!forgeDrawn&&window.F3D)F3D.hide();if(!mineDrawn&&window.M3D)M3D.hide()}
 function drawScene2(dt){if(!slide)return drawPlace(S.view,dt);slide.t=Math.min(1,slide.t+dt/.45);
   const k=slide.t<.5?2*slide.t*slide.t:1-Math.pow(-2*slide.t+2,2)/2,PL=['mine','forge','army','explore'],dir=PL.indexOf(S.view)>PL.indexOf(slide.from)?1:-1;
   ctx.save();placeOX=Math.round(-dir*k*480);ctx.translate(placeOX,0);drawPlace(slide.from,dt);ctx.restore();
@@ -719,9 +734,11 @@ Promise.all([fetch('art/mine.json').then(r=>r.json()),pic('art/mine.png'),fetch(
   buildCards();requestAnimationFrame(frame)});
 </script>
 <script type="module">
-// the forge in live 3D; without WebGL, or if the models don't load, the 2D forge stays
-try{const c=document.createElement('canvas');if(!(c.getContext('webgl2')||c.getContext('webgl')))throw new Error('no WebGL');
-  const {start}=await import('./forge3d.js');window.F3D=await start(document.getElementById('scene'))}catch(e){console.warn('3D forge off:',e)}
+// the mine and the forge in live 3D; without WebGL, or if the models don't load, that place keeps its 2D art
+const sc=document.getElementById('scene'),c=document.createElement('canvas'),gl=!!(c.getContext('webgl2')||c.getContext('webgl'));
+const go=(file,set)=>gl?import(file).then(m=>m.start(sc)).then(set).catch(e=>console.warn('3D off:',file,e)):null;
+go('./mine3d.js',D=>{for(const k in D.anchors)Object.assign(SPOT[k]||(SPOT[k]={}),D.anchors[k]);window.M3D=D});
+go('./forge3d.js',D=>window.F3D=D);
 </script>
 <script>
 if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js').catch(()=>{});
