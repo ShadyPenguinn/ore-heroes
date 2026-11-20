@@ -35,3 +35,9 @@ The forge is `art/src/forge.js`, in the same style and camera. To re-render afte
 node tools/render.js mine    # or forge; about 1.5 minutes, into tools/frames/<scene>/
 python3 tools/pack.py mine   # writes art/mine.png and art/mine.json (or forge)
 ```
+
+## The forge in 3D
+
+The forge is drawn live in 3D with three.js (`forge3d.js`), using KayKit models and KayKit's own animations by Kay Lousberg (CC0, see `models/KayKit-License.txt`). The Blacksmith (Barbarian) swings on every strike and his hammer lands on the anvil; the Swordsmith (Knight) hones at the grindstone. The 2D canvas draws on top of it for sparks, numbers and the rack glints. three.js r160 is vendored in `lib/` so the game works offline. Without WebGL the game falls back to the 2D forge art.
+
+`models/` holds the KayKit files converted to .glb, with the animation files cut down to the clips the game uses.

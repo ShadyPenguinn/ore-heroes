@@ -130,6 +130,7 @@ h2{font-family:var(--display);font-size:17px;letter-spacing:.04em;margin:0}
   </section>
 </div>
 <div class="toast" id="toast"></div>
+<script type="importmap">{"imports":{"three":"./lib/three.module.min.js"}}</script>
 <script>
 'use strict';
 const $=s=>document.querySelector(s);
@@ -366,8 +367,10 @@ function strike(){if(!F||F.done)return;const now=performance.now(),w=zoneW(),p=F
   if(F.last&&now-F.last<280)r='O';else if(p>=F.zl+w*.3&&p<=F.zl+w*.7)r='P';else if(p>=F.zl&&p<=F.zl+w)r='G';else r='M';
   F.last=now;F.res.push(r);let streak=0;for(let i=F.res.length-1;i>=0&&F.res[i]==='P';i--)streak++;
   F.msg={P:streak>4?`Perfect ×${streak}! +${perfectStars(streak)} stars`:'Perfect!',G:'Good',M:'Miss',O:'Too fast: overheated!'}[r];F.msgT=0;
-  if(r==='P'||r==='G'){A.smith.play('strike',['recover']);burst(ANVIL.hit,r==='P'?16:7,['#fff2c0','#ffd060','#ff9a30'],r==='P'?1.3:.8,'forge');sparks(p,r==='P'?14:7);trackShake();if(r==='P')shake=.12}
-  else{A.smith.play('strike',['recover']);burst(ANVIL.hit,8,['#584738','#42352b','#725d4a'],.5,'forge')}
+  // the sparks fly when the hammer lands: at once in 2D, a moment later when the 3D Blacksmith swings
+  const fx=r==='P'||r==='G'?()=>{burst(ANVIL.hit,r==='P'?16:7,['#fff2c0','#ffd060','#ff9a30'],r==='P'?1.3:.8,'forge');if(r==='P')shake=.12}:()=>burst(ANVIL.hit,8,['#584738','#42352b','#725d4a'],.5,'forge');
+  if(window.F3D)F3D.strike(fx);else{A.smith.play('strike',['recover']);fx()}
+  if(r==='P'||r==='G'){sparks(p,r==='P'?14:7);trackShake()}
   if(r==='M'||r==='O'){F.done=true;F.msg+=` −${missLoss(scoreOf(F.res))} stars, and the blank is done`;setTimeout(finishForge,700);refreshForge();return}
   if(F.res.length>=F.n){F.done=true;setTimeout(finishForge,r==='P'?380:260);refreshForge();return}
   F.speed+=11;placeZone();refreshForge()}
@@ -380,12 +383,12 @@ function finishForge(){const raw=scoreOf(F.res),missed=F.res.some(r=>r==='M'||r=
   lastResult=`${GR[g].n} ${WEAP[w].n} ★${stars}${missed?` (−${lost} for the miss)`:''}`;
   popAt(ANVIL.pop,`${GR[g].n}!`,GCOL[g]);if(g>=3)burst(ANVIL.hit,24,[GCOL[g],'#fff2c0','#ffd060'],1.6,'forge');
   // the weapon's smith takes it to their station to finish it
-  const st=STATIONS.find(x=>x.w===w);if(st&&lv(st.k))A[w].play(w==='sword'?'study':'strike',w==='sword'?[]:['recover','strike','recover']);
+  const st=STATIONS.find(x=>x.w===w);if(st&&lv(st.k)){A[w].play(w==='sword'?'study':'strike',w==='sword'?[]:['recover','strike','recover']);if(window.F3D)F3D.act(w,w==='sword'?'study':'work')}
   F=null;if(!S.army)setTimeout(openArmy,900);save();refreshForge();refreshCards()}
 function popAt(at,txt,col){if(S.view==='forge')pops.push({x:at[0],y:at[1],txt,t:0,col,F:true})}
 // the Swordsmith hones his blade, and every so often stops to read up on swords
 let studyT=6;
-function forgeLogic(dt){if(!S.forge)return;forgeTick(dt);if(lv('swordsmith')&&A.sword&&A.sword.seg==='idle'&&(studyT-=dt)<=0){studyT=7+Math.random()*6;A.sword.play('study')}}
+function forgeLogic(dt){if(!S.forge)return;forgeTick(dt);if(lv('swordsmith')&&A.sword&&A.sword.seg==='idle'&&(studyT-=dt)<=0){studyT=7+Math.random()*6;A.sword.play('study');if(window.F3D)F3D.act('sword','study')}}
 function openForge(){S.forge=1;S.h.smith=S.h.smith||1;S.seen.smith=1;save();buildCards();setPlaces();toast('With the Foreman keeping the Miner swinging, you can go to the forge. Tap Forge.')}
 
 // automatic heroes run on their own clocks so the ore arrives in visible trips, strikes, calls and blasts
@@ -454,12 +457,15 @@ function drawFx(dt){
 // switching places slides the scenes like a strip: the mine on the left, the forge to its right
 let slide=null;
 const drawPlace=(v,dt)=>v==='forge'&&S.forge?drawForge(dt):v==='army'&&S.army?drawArmy(dt):v==='explore'&&S.explore?drawExplore(dt):draw(dt);
-function drawScene(dt){if(!slide)return drawPlace(S.view,dt);slide.t=Math.min(1,slide.t+dt/.45);
+let placeOX=0,forgeDrawn=false;
+function drawScene(dt){ctx.clearRect(0,0,480,210);forgeDrawn=false;placeOX=0;drawScene2(dt);if(!forgeDrawn&&window.F3D)F3D.hide()}
+function drawScene2(dt){if(!slide)return drawPlace(S.view,dt);slide.t=Math.min(1,slide.t+dt/.45);
   const k=slide.t<.5?2*slide.t*slide.t:1-Math.pow(-2*slide.t+2,2)/2,PL=['mine','forge','army','explore'],dir=PL.indexOf(S.view)>PL.indexOf(slide.from)?1:-1;
-  ctx.save();ctx.translate(Math.round(-dir*k*480),0);drawPlace(slide.from,dt);ctx.restore();
-  ctx.save();ctx.translate(Math.round(dir*(1-k)*480),0);drawPlace(S.view,dt);ctx.restore();
+  ctx.save();placeOX=Math.round(-dir*k*480);ctx.translate(placeOX,0);drawPlace(slide.from,dt);ctx.restore();
+  ctx.save();placeOX=Math.round(dir*(1-k)*480);ctx.translate(placeOX,0);drawPlace(S.view,dt);ctx.restore();
   ctx.fillStyle='#000';ctx.fillRect(Math.round(dir>0?480*(1-k)-1:480*k-1),0,2,210);if(slide.t>=1)slide=null}
 function drawForge(dt){
+  if(window.F3D)return drawForge3D(dt);
   ctx.save();if(shake>0){ctx.translate(Math.round((Math.random()-.5)*5*shake),Math.round((Math.random()-.5)*5*shake));shake=Math.max(0,shake-dt)}
   const bg=fatlas.sprites.bg;ctx.drawImage(fimg,bg[0],bg[1],bg[2],bg[3],-3,-3,486,216);
   glow(158,74,60+4*Math.sin(clock*3),'255,150,60',.16);
@@ -474,6 +480,14 @@ function drawForge(dt){
   if(A.smith.seg==='strike'||(A.smith.seg==='recover'&&A.smith.t<.08))glow(ANVIL.hit[0],ANVIL.hit[1],14,'255,200,120',.5);
   drawFx(dt);ctx.restore();
 }
+// the forge in live 3D (forge3d.js): the 3D scene draws underneath, and the sparks, numbers, rack glints and "?" signs draw on top
+function drawForge3D(dt){const D=F3D,a=D.anchors;forgeDrawn=true;ANVIL.hit=a.hit;ANVIL.pop=a.pop;
+  const open={},hired={};for(const st of STATIONS){open[st.w]=lv('smith')>=st.lv;hired[st.w]=!!lv(st.k)}
+  D.render(dt,placeOX,{hot:!!F,open,hired,best:S.best,shake});if(shake>0)shake=Math.max(0,shake-dt);
+  for(const w of Object.keys(WEAP)){const b=S.best[w],p=a.rack[w];if(b&&p&&b.g>=1)glow(p[0],p[1],6+Math.min(10,b.g*2),hexRgb(GCOL[b.g]),.25+.08*Math.sin(clock*2+p[0]))}
+  const nx=HEROES.find(h=>place(h)==='forge'&&!lv(h.k)),isNext=k=>!!(nx&&nx.k===k&&S.seen[k]);
+  for(const st of STATIONS)if(open[st.w]&&!hired[st.w]&&a.sign[st.w])waitingSpot(a.sign[st.w],isNext(st.k));
+  drawFx(dt)}
 /* ---------- the army's camp ---------- */
 // heroes stand in a line in front of the fire: one rendered spot, shifted sideways for each place in the line
 const SLOTX=[0,42,-42,84,-84,126];
@@ -703,6 +717,13 @@ Promise.all([fetch('art/mine.json').then(r=>r.json()),pic('art/mine.png'),fetch(
   if(S.forged)fhintGone=true;setPlaces();
   awayGrant((Date.now()-(S.t||Date.now()))/1000);S.seen.miner=1;if(S.taps>=3){hintGone=true;$('#taphint').style.opacity=0}
   buildCards();requestAnimationFrame(frame)});
+</script>
+<script type="module">
+// the forge in live 3D; without WebGL, or if the models don't load, the 2D forge stays
+try{const c=document.createElement('canvas');if(!(c.getContext('webgl2')||c.getContext('webgl')))throw new Error('no WebGL');
+  const {start}=await import('./forge3d.js');window.F3D=await start(document.getElementById('scene'))}catch(e){console.warn('3D forge off:',e)}
+</script>
+<script>
 if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js').catch(()=>{});
 </script>
 </body>
