@@ -93,7 +93,9 @@ img.ico3d{image-rendering:auto!important;object-fit:contain}
 .lookhead .pv{width:88px;height:112px;border-radius:10px;background:#0c0a09;display:grid;place-items:center;overflow:hidden;flex:none}
 .lookhead .pv img{width:88px;height:112px}
 .lookhead b{font-size:18px}
+.lookhead .ldesc{margin:6px 0 0;font-size:13px;line-height:1.35;color:var(--muted)}
 .lookrow{margin-top:10px}
+.lookrow+.lookrow{margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
 .lookrow small{display:block;color:var(--muted);margin-bottom:6px}
 .sw{display:flex;flex-wrap:wrap;gap:8px}
 .sw button{width:34px;height:34px;border-radius:50%;border:2px solid rgba(255,255,255,.15);padding:0;cursor:pointer}
@@ -184,36 +186,44 @@ const TOOLS=['Copper','Iron','Steel','Moonsilver','Starmetal'];
 const HEROES=[
   {k:'miner',n:'Miner',base:10,
     what:()=>`+${fmtN(minerTap())}/tap`,
+    desc:()=>`Swings his pick every time you tap: +${fmtN(minerTap())} ore a tap`,
     ms:lv=>`Level ${nextMs(lv)}: ${TOOLS[Math.min(4,msCount(lv)+1)]} pick, double ore per tap`},
   {k:'carter',n:'Carter',base:100,
     what:()=>`+${fmtN(carterRate()*TRIP/timeSpeed())}/trip`,
+    desc:()=>`Rides the cart into the tunnel and back: ${fmtN(carterRate()*TRIP/timeSpeed())} ore a trip`,
     ms:lv=>`Level ${nextMs(lv)}: ${['greased wheels','a bigger cart','a second cart','iron rails'][Math.min(3,msCount(lv))]}, double loads`,
     req:()=>lv('miner')>=5&&S.taps>=25, hint:'The Miner is getting the hang of it. Keep tapping and level the Miner.'},
   {k:'phantom',n:'Phantom Miner',base:1000,
     what:()=>`+${fmtN(phantomRate())}/s`,
+    desc:()=>`A ghost miner who still works the rock: ${fmtN(phantomRate())} ore/s`,
     ms:lv=>`Level ${nextMs(lv)}: ${['a brighter glow','a second spectral edge','twin picks','a storm of picks'][Math.min(3,msCount(lv))]}, double strikes`,
     req:()=>lv('carter')>=5&&lv('miner')>=10, hint:'Something stirs in the dark. Level the Carter and the Miner.'},
   {k:'prospector',n:'Prospector',base:8000,
     what:()=>`+${fmtN(prospTap())}/hit`,
+    desc:()=>`Swings beside you every time you swing: +${fmtN(prospTap())} ore a swing`,
     ms:lv=>`Level ${nextMs(lv)}: ${TOOLS[Math.min(4,msCount(lv)+1)]} pick, double ore`,
     req:()=>lv('phantom')>=5&&S.taps>=400, hint:'Someone is watching how you swing. Keep tapping, and level the Phantom Miner.'},
   // the Foreman (Jonathan, Nov 19): tells the Miner to swing on a timer, tapping or not. 10 s at level 1, shorter every level, no floor.
   {k:'foreman',n:'Foreman',base:25000,
     what:()=>foremanShort(),
+    desc:()=>`Blows his whistle and the Miner swings: ${foremanText()}`,
     ms:lv=>`Level ${nextMs(lv)}: ${['a louder whistle','a pocket watch that runs fast','a megaphone','a brass band'][Math.min(3,msCount(lv))]}, twice as many swings`,
     req:()=>lv('prospector')>=5&&S.taps>=1000, hint:'Your arm is getting tired. Keep tapping, and level the Prospector.'},
   {k:'blaster',n:'Blaster',base:400000,
     what:()=>`+${fmtN(blasterRate()*BLAST/timeSpeed())}/blast`,
+    desc:()=>`Lights a fuse every ${Math.round(BLAST/timeSpeed()*10)/10}s: ${fmtN(blasterRate()*BLAST/timeSpeed())} ore a blast`,
     ms:lv=>`Level ${nextMs(lv)}: ${['longer fuses','bigger charges','blasting jelly','thunder powder'][Math.min(3,msCount(lv))]}, double blasts`,
     req:()=>lv('foreman')>=5&&S.mined>=1e6, hint:'Big rocks need a bigger answer. Mine a lot more ore.'},
   {k:'lamp',n:'Lamplighter',base:5e6,noMs:true,
     what:()=>`+${Math.round((lampBoost()-1)*100)}% ore`,
+    desc:()=>`+${Math.round((lampBoost()-1)*100)}% all mine ore. Keeps the mine working ${nightText()}`,
     ms:lv=>lv<12?`Next level: lanterns burn 1 more hour while you're away`:`Next level: +1% of ore kept while away`,
     req:()=>lv('blaster')>=5&&S.blasts>=10, hint:'The lanterns gutter out whenever you leave. Keep blasting.'},
   // the Time Miner (Jonathan, Nov 19): late game; shaves time off every timed hero (the Carter's trips, the Phantom Pick,
   // the Foreman's whistle, the Blaster's fuse). +3% speed per level, doubled at milestones, no ceiling.
   {k:'time',n:'Time Miner',base:1e8,noMs:true,
     what:()=>`${Math.round(timeSpeed()*100)/100}× speed`,
+    desc:()=>`Turns his hourglass and the whole mine hurries: everything timed runs ${Math.round(timeSpeed()*100)/100}× as fast`,
     ms:lv=>`Next level: everything timed runs 3% faster`,
     req:()=>lv('lamp')>=5&&S.mined>=1e8, hint:'Everything here takes so long. Dig deeper.'},
   /* ---------- the forge (opens when the Foreman is hired, about minute 10) ----------
@@ -726,8 +736,8 @@ function lookIcon(k,el){const L=LOOK_LAYER[k],look=(S.look||{})[k];if(!L||!look|
       lookPaint(src,d.data,mask,0,0,W,[0,0,W,H],look,atlas.slots[L]);x.putImageData(d,0,0);el.src=lookIconCache[key]=c.toDataURL()}).catch(()=>{})})}
 function openLook(k){const h=HEROES.find(q=>q.k===k),L=LOOK_LAYER[k],slots=atlas.slots&&atlas.slots[L];if(!slots)return;
   const look=(S.look||(S.look={}))[k]||{},box=$('#lookbox');
-  const row=(s,label)=>slots[s]?`<div class="lookrow"><small>${label}</small><div class="sw" data-s="${s}"><button class="def${look[s]?'':' on'}" data-c="" aria-label="As drawn">↺</button>${LOOK_SW[s].map(c=>`<button style="background:${c}" data-c="${c}" class="${look[s]===c?'on':''}" aria-label="${c}"></button>`).join('')}</div></div>`:'';
-  box.innerHTML=`<div class="lookhead"><div class="pv"></div><div><b>Customize the ${h.n}</b></div></div>${row('skin','Skin')}${row('hair','Hair')}${row('a',LOOK_ROWS[k].a)}${row('b',LOOK_ROWS[k].b||'')}<button class="b go lookdone" data-done="1">Done</button>`;
+  const row=(s,label)=>slots[s]?`<div class="lookrow"><div class="sw" data-s="${s}"><button class="def${look[s]?'':' on'}" data-c="" aria-label="As drawn">↺</button>${LOOK_SW[s].map(c=>`<button style="background:${c}" data-c="${c}" class="${look[s]===c?'on':''}" aria-label="${c}"></button>`).join('')}</div></div>`:'';
+  box.innerHTML=`<div class="lookhead"><div class="pv"></div><div><b>${h.n}</b>${h.desc?`<p class="ldesc">${h.desc()}</p>`:''}</div></div>${row('skin','Skin')}${row('hair','Hair')}${row('a',LOOK_ROWS[k].a)}${row('b',LOOK_ROWS[k].b||'')}<button class="b go lookdone" data-done="1">Done</button>`;
   const pv=()=>{const i=icon3d('h-'+k,88,112);lookIcon(k,i);box.querySelector('.pv').replaceChildren(i)};pv();
   box.onclick=e=>{if(e.target.closest('[data-done]'))return closeLook();const b=e.target.closest('.sw button');if(!b)return;const s=b.parentNode.dataset.s,lk=S.look[k]||(S.look[k]={});
     if(b.dataset.c)lk[s]=b.dataset.c;else delete lk[s];if(!Object.keys(lk).length)delete S.look[k];
