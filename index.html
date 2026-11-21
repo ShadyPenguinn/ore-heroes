@@ -81,6 +81,23 @@ img.ico3d{image-rendering:auto!important;object-fit:contain}
 .note{color:var(--muted);font-size:12px;margin:0}
 .toast{position:fixed;z-index:200;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%) translateY(20px);background:var(--panel2);border:1px solid var(--ember);border-radius:10px;padding:9px 14px;opacity:0;transition:.3s;pointer-events:none;z-index:20;max-width:calc(100vw - 32px);text-align:center}
 .toast.show{opacity:1;transform:translateX(-50%)}
+/* customise a mine hero: tap the portrait */
+.card.cust .pic{position:relative;cursor:pointer}
+.card.cust .pic::after{content:"";position:absolute;right:2px;bottom:2px;width:13px;height:13px;border-radius:50%;background:var(--ember) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23201510' stroke-width='3' stroke-linecap='round'%3E%3Cpath d='M4 20l4-1L19 8l-3-3L5 16z'/%3E%3C/svg%3E") center/9px no-repeat}
+.lookbg{position:fixed;inset:0;z-index:150;background:rgba(0,0,0,.6);display:none;align-items:flex-end;justify-content:center}
+.lookbg.on{display:flex}
+.lookbox{width:min(480px,100%);max-height:88vh;overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:16px 16px 0 0;padding:14px 16px calc(14px + env(safe-area-inset-bottom,0px))}
+.lookhead{display:flex;gap:12px;align-items:center;margin-bottom:6px}
+.lookhead .pv{width:88px;height:112px;border-radius:10px;background:#0c0a09;display:grid;place-items:center;overflow:hidden;flex:none}
+.lookhead .pv img{width:88px;height:112px}
+.lookhead b{font-size:18px}
+.lookrow{margin-top:10px}
+.lookrow small{display:block;color:var(--muted);margin-bottom:6px}
+.sw{display:flex;flex-wrap:wrap;gap:8px}
+.sw button{width:34px;height:34px;border-radius:50%;border:2px solid rgba(255,255,255,.15);padding:0;cursor:pointer}
+.sw button.on{border-color:#ffd27a;box-shadow:0 0 0 2px rgba(255,210,122,.35)}
+.sw button.def{background:#2a221c;color:#d8d0c0;font-size:15px}
+.lookdone{margin-top:14px;width:100%}
 .panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:8px}
 .panel .row{flex-wrap:wrap;justify-content:flex-start}
 .wpick{flex-wrap:wrap}.wpick .b{min-height:34px}
@@ -147,6 +164,7 @@ img.ico3d{image-rendering:auto!important;object-fit:contain}
   </section>
 </div>
 <div class="toast" id="toast"></div>
+<div class="lookbg" id="lookbg"><div class="lookbox" id="lookbox"></div></div>
 <script type="importmap">{"imports":{"three":"./lib/three.module.min.js"}}</script>
 <script>
 'use strict';
@@ -169,14 +187,14 @@ const HEROES=[
     what:()=>`Rides the cart into the tunnel and back: ${fmtN(carterRate()*TRIP/timeSpeed())} ore a trip`,
     ms:lv=>`Level ${nextMs(lv)}: ${['greased wheels','a bigger cart','a second cart','iron rails'][Math.min(3,msCount(lv))]}, double loads`,
     req:()=>lv('miner')>=5&&S.taps>=25, hint:'The Miner is getting the hang of it. Keep tapping and level the Miner.'},
-  {k:'phantom',n:'Phantom Pick',base:1000,
-    what:()=>`A ghostly pickaxe that strikes on its own: ${fmtN(phantomRate())} ore/s`,
+  {k:'phantom',n:'Phantom Miner',base:1000,
+    what:()=>`A ghost miner who still works the rock: ${fmtN(phantomRate())} ore/s`,
     ms:lv=>`Level ${nextMs(lv)}: ${['a brighter glow','a second spectral edge','twin picks','a storm of picks'][Math.min(3,msCount(lv))]}, double strikes`,
     req:()=>lv('carter')>=5&&lv('miner')>=10, hint:'Something stirs in the dark. Level the Carter and the Miner.'},
   {k:'prospector',n:'Prospector',base:8000,
     what:()=>`Swings beside you every time you swing: +${fmtN(prospTap())} ore a swing`,
     ms:lv=>`Level ${nextMs(lv)}: ${TOOLS[Math.min(4,msCount(lv)+1)]} pick, double ore`,
-    req:()=>lv('phantom')>=5&&S.taps>=400, hint:'Someone is watching how you swing. Keep tapping, and level the Phantom Pick.'},
+    req:()=>lv('phantom')>=5&&S.taps>=400, hint:'Someone is watching how you swing. Keep tapping, and level the Phantom Miner.'},
   // the Foreman (Jonathan, Nov 19): tells the Miner to swing on a timer, tapping or not. 10 s at level 1, shorter every level, no floor.
   {k:'foreman',n:'Foreman',base:25000,
     what:()=>`Blows his whistle and the Miner swings: ${foremanText()}`,
@@ -298,7 +316,7 @@ const nightText=()=>lv('lamp')?`for ${nightHours()} h at ${nightPct()}% while yo
 const costAt=(k,l)=>Math.ceil(HK[k].base*Math.pow(1.15,l));
 function costN(k,n){let c=0,l=lv(k);for(let i=0;i<n;i++)c+=costAt(k,l+i);return c}
 
-function fresh(){return{ore:0,mined:0,taps:0,blasts:0,h:{miner:1},seen:{miner:1},t:Date.now(),lastBackup:0,forge:0,view:'mine',forged:0,made:{},best:{},pick:{w:'sword',n:3},inv:[],nid:1,army:0,heroes:[],sel:0,explore:0,stage:1,renown:0,v:4}}
+function fresh(){return{ore:0,mined:0,taps:0,blasts:0,h:{miner:1},seen:{miner:1},t:Date.now(),lastBackup:0,forge:0,view:'mine',forged:0,made:{},best:{},pick:{w:'sword',n:3},inv:[],nid:1,army:0,heroes:[],sel:0,explore:0,stage:1,renown:0,look:{},v:4}}
 function save(){S.t=Date.now();try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
 function load(){let d=null;try{d=JSON.parse(localStorage.getItem(KEY)||'null')}catch(e){}S=Object.assign(fresh(),d||{});S.h=Object.assign({miner:1},S.h);migrate()}
 // v2 (Nov 19 evening): the first forge (auto smiths, 1M-ore swords) was replaced by the forging minigame; its forge levels and weapon counts go
@@ -316,7 +334,7 @@ const cv=$('#cv'),ctx=cv.getContext('2d');ctx.setTransform(2,0,0,2,0,0);ctx.imag
 const SPOT={
   miner:{pop:[294,94],hit:[266,124]},
   pros:{pop:[124,86],hit:[112,106],sign:[118,104]},
-  phantom:{pop:[302,46],hit:[284,72],sign:[288,74]},
+  phantom:{pop:[304,104],hit:[304,124],sign:[345,118]},
   carter:{pop:[103,146],hit:[103,166],sign:[103,174]},
   foreman:{sign:[94,150]},
   time:{sign:[392,96]},
@@ -668,10 +686,56 @@ function refreshExplore(){const on=S.explore&&S.view==='explore';$('#xpanel').st
 $('#xpanel').addEventListener('click',e=>{const t=e.target.closest('[data-x]');if(!t)return;const x=t.dataset.x;
   if(x==='go'){battle=null;startFight()}else if(x==='spd'){xspd=xspd===1?2:xspd===2?4:1}else if(x==='skip')skipFight();refreshExplore()});
 const hexRgb=h=>[1,3,5].map(i=>parseInt(h.slice(i,i+2),16)).join(',');
+/* ---------- customise: every mine hero's skin, hair and two outfit colours ----------
+   The mine art is drawn from a fixed palette, and art/mine-slots.png marks which pixels are skin (60), hair (120), the main outfit (180)
+   or the second outfit (240), with mine.json's "slots" giving each hero's own shades for them. Changing a colour swaps those shades for
+   a ramp built from the pick, scaled shade by shade, so light and shadow stay as drawn. Portraits get the same swap. */
+const LOOK_LAYER={miner:'miner',prospector:'pros',carter:'cart',phantom:'phantom',foreman:'boss',blaster:'blast',lamp:'lamp',time:'time'};
+const LOOK_ROWS={miner:{a:'Shirt',b:'Trousers'},prospector:{a:'Shirt',b:'Hat and leathers'},carter:{a:'Shirt',b:'Cap and trousers'},phantom:{a:'Glow'},
+  foreman:{a:'Suit',b:'Waistcoat'},blaster:{a:'Shirt',b:'Vest'},lamp:{a:'Coat',b:'Hat and trousers'},time:{a:'Robe',b:'Magic'}};
+const LOOK_SW={skin:['#f6d2b0','#eab888','#d09a6c','#b07a4c','#8a5a36','#6a4026','#4a2a18'],
+  hair:['#e8a860','#f2d27a','#a06a3e','#5a3a24','#2a2a30','#d8d2c8','#b8402e','#4a6ea8'],
+  a:['#4a8a6c','#5a7cb0','#a82a1c','#c09a38','#6e5aa8','#3a4058','#8a2c40','#9a8656','#d8d2c8','#2a2a30','#d06a9a','#5ae0c8'],
+  b:['#65503e','#3a4058','#8a2c40','#9a8656','#4a8a6c','#a06a3e','#c09a38','#2a2a30','#d8d2c8','#6e5aa8','#d06a9a','#5ae0c8']};
+const SLOTK=['skin','hair','a','b'];
+let lookCv=null,lookCtx=null,lookOrig=null,lookWork=null,lookMask=null,lookReady=Promise.resolve();
+const hx=h=>[1,3,5].map(i=>parseInt(h.slice(i,i+2),16)),lum=c=>.3*c[0]+.59*c[1]+.11*c[2];
+// the swap for one slot: each of the hero's own shades -> the same shade of the picked colour (the pick is the hero's light-middle shade)
+function lookRamp(def,pick){const D=def.map(hx),ref=D[Math.round((D.length-1)*.75)],P=hx(pick),k=D.map(d=>lum(d)/Math.max(1,lum(ref)));
+  return{D,T:k.map(f=>P.map(v=>Math.min(255,v*f)))}}
+function lookPixel(R,d,o){let bi=0,bd=1e9;for(let i=0;i<R.D.length;i++){const q=R.D[i],e=(d[o]-q[0])**2+(d[o+1]-q[1])**2+(d[o+2]-q[2])**2;if(e<bd){bd=e;bi=i}}
+  const q=R.D[bi],t=R.T[bi];for(let c=0;c<3;c++)d[o+c]=Math.max(0,Math.min(255,Math.round(t[c]*(d[o+c]+4)/(q[c]+4))))}
+// recolour pixels: src (original), dst (to write), mask, the hero's look and slots
+function lookPaint(src,dst,mask,n0,n1,W,box,look,slots){const R=SLOTK.map(s=>look&&look[s]&&slots[s]?lookRamp(slots[s],look[s]):null);
+  const [x0,y0,w,h]=box;for(let y=y0;y<y0+h;y++)for(let x=x0;x<x0+w;x++){const o=(y*W+x)*4;dst[o]=src[o];dst[o+1]=src[o+1];dst[o+2]=src[o+2];dst[o+3]=src[o+3];
+    const m=mask[o],r=m?R[Math.round(m/60)-1]:null;if(r&&src[o+3])lookPixel(r,dst,o)}}
+function lookInit(img,sl){const W=img.width,H=img.height;lookCv=document.createElement('canvas');lookCv.width=W;lookCv.height=H;lookCtx=lookCv.getContext('2d',{willReadFrequently:true});
+  lookCtx.drawImage(sl,0,0);lookMask=lookCtx.getImageData(0,0,W,H).data;lookCtx.clearRect(0,0,W,H);lookCtx.drawImage(img,0,0);lookWork=lookCtx.getImageData(0,0,W,H);lookOrig=new Uint8ClampedArray(lookWork.data)}
+function lookApply(k){const L=LOOK_LAYER[k];if(!lookCv||!L||!atlas.slots||!atlas.slots[L])return;const look=(S.look||{})[k],W=lookCv.width;
+  for(const [n,s] of Object.entries(atlas.sprites)){if(!n.startsWith(L+'-'))continue;const box=[s[0],s[1],s[2],s[3]];
+    lookPaint(lookOrig,lookWork.data,lookMask,0,0,W,box,look,atlas.slots[L]);lookCtx.putImageData(lookWork,0,0,box[0],box[1],box[2],box[3])}}
+// a portrait with the hero's look: drawn into a canvas and handed back as the image's source
+const lookIconCache={};
+function lookIcon(k,el){const L=LOOK_LAYER[k],look=(S.look||{})[k];if(!L||!look||!Object.keys(look).length)return;
+  lookReady.then(()=>{if(!atlas||!atlas.slots||!atlas.slots[L])return;const key=k+JSON.stringify(look);if(lookIconCache[key]){el.src=lookIconCache[key];return}
+    Promise.all([pic('art/icons/h-'+k+'.png'),pic('art/icons/h-'+k+'.slots.png')]).then(([im,sm])=>{const c=document.createElement('canvas'),W=c.width=im.width,H=c.height=im.height,x=c.getContext('2d',{willReadFrequently:true});
+      x.drawImage(sm,0,0);const mask=x.getImageData(0,0,W,H).data;x.clearRect(0,0,W,H);x.drawImage(im,0,0);const d=x.getImageData(0,0,W,H),src=new Uint8ClampedArray(d.data);
+      lookPaint(src,d.data,mask,0,0,W,[0,0,W,H],look,atlas.slots[L]);x.putImageData(d,0,0);el.src=lookIconCache[key]=c.toDataURL()}).catch(()=>{})})}
+function openLook(k){const h=HEROES.find(q=>q.k===k),L=LOOK_LAYER[k],slots=atlas.slots&&atlas.slots[L];if(!slots)return;
+  const look=(S.look||(S.look={}))[k]||{},box=$('#lookbox');
+  const row=(s,label)=>slots[s]?`<div class="lookrow"><small>${label}</small><div class="sw" data-s="${s}"><button class="def${look[s]?'':' on'}" data-c="" aria-label="As drawn">↺</button>${LOOK_SW[s].map(c=>`<button style="background:${c}" data-c="${c}" class="${look[s]===c?'on':''}" aria-label="${c}"></button>`).join('')}</div></div>`:'';
+  box.innerHTML=`<div class="lookhead"><div class="pv"></div><div><b>${h.n}</b><div class="what">Pick their colours.</div></div></div>${row('skin','Skin')}${row('hair','Hair')}${row('a',LOOK_ROWS[k].a)}${row('b',LOOK_ROWS[k].b||'')}<button class="b go lookdone" data-done="1">Done</button>`;
+  const pv=()=>{const i=icon3d('h-'+k,88,112);lookIcon(k,i);box.querySelector('.pv').replaceChildren(i)};pv();
+  box.onclick=e=>{if(e.target.closest('[data-done]'))return closeLook();const b=e.target.closest('.sw button');if(!b)return;const s=b.parentNode.dataset.s,lk=S.look[k]||(S.look[k]={});
+    if(b.dataset.c)lk[s]=b.dataset.c;else delete lk[s];if(!Object.keys(lk).length)delete S.look[k];
+    b.parentNode.querySelectorAll('button').forEach(q=>q.classList.toggle('on',q===b));lookApply(k);pv();save()};
+  $('#lookbg').classList.add('on')}
+function closeLook(){$('#lookbg').classList.remove('on');buildCards()}
+$('#lookbg').addEventListener('click',e=>{if(e.target.id==='lookbg')closeLook()});
 /* ---------- hero cards ---------- */
 // hero portraits and weapon icons are rendered from the KayKit models by tools/icons.js into art/icons/
 const icon3d=(name,w,h)=>{const i=new Image(w,h);i.className='ico3d';i.alt='';i.draggable=false;i.src='art/icons/'+name+'.png';return i};
-function portrait(h){return icon3d('h-'+h.k,44,56)}
+function portrait(h){const i=icon3d('h-'+h.k,44,56);lookIcon(h.k,i);return i}
 function buildCards(){const box=$('#cards');box.innerHTML='';for(const h of HEROES){if(place(h)!==(S.view||'mine'))continue;const el=document.createElement('div');el.className='card';el.dataset.k=h.k;
   el.innerHTML=`<div class="pic"></div><div><div><b>${h.n}</b><span class="lv"></span></div><div class="what"></div><div class="next"></div></div><div class="buy"><button class="b go" data-buy="${h.k}"></button></div>`;
   el.querySelector('.pic').appendChild(portrait(h));box.appendChild(el)}refreshCards()}
@@ -680,7 +744,7 @@ function refreshCards(){let shownLocked=false;
   for(const h of HEROES){const el=document.querySelector(`.card[data-k="${h.k}"]`);if(!el)continue;const L=lv(h.k),seen=S.seen[h.k];
     if(!seen){if(shownLocked){el.style.display='none';continue}shownLocked=true;el.style.display='';el.className='card locked';el.querySelector('b').textContent='???';el.querySelector('.lv').textContent='';el.querySelector('.what').textContent=h.hint;el.querySelector('.next').textContent='';el.querySelector('.buy').style.display='none';el.querySelector('.pic').style.visibility='hidden';continue}
     el.style.display='';el.querySelector('.pic').style.visibility='';el.querySelector('.buy').style.display='';el.querySelector('b').textContent=h.n;
-    el.className='card'+(L?'':' fresh');
+    el.className='card'+(L?'':' fresh')+(L&&LOOK_LAYER[h.k]&&atlas&&atlas.slots?' cust':'');
     el.querySelector('.lv').textContent=L?`Lv ${L}`:'';
     el.querySelector('.what').textContent=L?h.what():place(h)==='forge'?`Waiting at the forge door. Hire them to start work.`:`Waiting at the mine mouth. Hire them to open their spot.`;
     el.querySelector('.next').textContent=L?h.ms(L):'';
@@ -711,7 +775,7 @@ new ResizeObserver(layoutScene).observe($('#scene'));setFull(false);
 // iPhone: fast taps must never zoom the page (double-tap zoom and pinch)
 for(const ev of ['gesturestart','gesturechange','gestureend','dblclick'])document.addEventListener(ev,e=>e.preventDefault(),{passive:false});
 document.addEventListener('keydown',e=>{if(e.code==='Space'&&S.view==='forge'){e.preventDefault();tap()}});
-$('#cards').addEventListener('click',e=>{const b=e.target.closest('[data-buy]');if(b)buy(b.dataset.buy)});
+$('#cards').addEventListener('click',e=>{const b=e.target.closest('[data-buy]');if(b)return buy(b.dataset.buy);const c=e.target.closest('.card.cust .pic');if(c)openLook(c.closest('.card').dataset.k)});
 function refreshForge(){drawTrack();const on=S.forge&&S.view==='forge';$('#fpanel').style.display=on?'':'none';if(!on)return;
   if(!known().length){$('#wpick').innerHTML='<span class="note">No recipes yet. The Blacksmith learns Swords at level '+SWORD_LV+'.</span>'}
   const ks=known();if(!ks.includes(S.pick.w))S.pick.w='sword';S.pick.n=Math.max(1,Math.min(S.pick.n,foldLimit()));
@@ -750,11 +814,12 @@ window.addEventListener('pagehide',save);
 
 load();
 const pic=src=>new Promise((ok,bad)=>{const i=new Image();i.onload=()=>ok(i);i.onerror=bad;i.src=src});
+const mineSlots=pic('art/mine-slots.png').catch(()=>null);
 Promise.all([fetch('art/mine.json').then(r=>r.json()),pic('art/mine.png'),fetch('art/forge.json').then(r=>r.json()),pic('art/forge.png'),fetch('art/army.json').then(r=>r.json()),pic('art/army.png'),fetch('art/explore.json').then(r=>r.json()),pic('art/explore.png')]).then(([a,i,fa,fi,aa,ai,xa,xi])=>{
   // an atlas drawn at 1/k: [sx, sy, sw, sh, x, y] gets its place and size on the stage as [.., x/k, y/k, sw/k, sh/k]
   for(const at of [a,fa]){const k=at.k||1;for(const s of Object.values(at.sprites)){s[6]=s[2]/k;s[7]=s[3]/k;s[4]/=k;s[5]/=k}}
   {const b=a.sprites.bg,bd=$('#bd').getContext('2d');bd.drawImage(i,b[0],b[1],b[2],b[3],0,0,480,210)}
-  atlas=a;img=i;fatlas=fa;fimg=fi;aatlas=aa;aimg=ai;xatlas=xa;ximg=xi;
+  atlas=a;lookReady=mineSlots.then(sl=>{if(sl&&a.slots){lookInit(i,sl);img=lookCv;for(const k in S.look||{})lookApply(k);buildCards()}});img=i;fatlas=fa;fimg=fi;aatlas=aa;aimg=ai;xatlas=xa;ximg=xi;
   A.miner=new Actor('miner',e=>{if(e==='strike')minerLanded()});A.pros=new Actor('pros',e=>{if(e==='strike')prospLanded()});
   A.phantom=new Actor('phantom',e=>{if(e==='strike'){gain(phantomRate()*PHANTOM_EVERY,SPOT.phantom.pop,'#b8fff0');burst(SPOT.phantom.hit,6,['#8affe0','#d88038','#f0b070'],.7)}});
   A.boss=new Actor('boss');A.blast=new Actor('blast');A.lamp=new Actor('lamp');A.time=new Actor('time');

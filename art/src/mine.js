@@ -195,6 +195,15 @@ module.exports = ({ makeBuilder, makeSculpt, KIT: K }) => {
     const ease = x => x * x * (3 - 2 * x);
     const tn = (axis, deg) => K.M.rot(axis, (deg * Math.PI) / 180); // a turn about an axis, for pose.turn
     const C = HEROES.palette(72), HB = HEROES(S, K, B, C), Mt = HB.M;
+    // the colours a player can change on each hero (skin, hair, a = main outfit, b = second outfit): each a ramp no other part of
+    // that hero uses. tools/multi.js marks where they land in every frame, and the game swaps them for the player's picks
+    const SLOTS = {
+      miner: { skin: C.skin, hair: C.beard, a: C.shirt, b: C.trous }, pros: { skin: C.tan, hair: C.grey, a: C.denim, b: C.leather },
+      cart: { skin: C.deep, hair: C.hairBlack, a: C.grey, b: C.tweed }, phantom: { a: C.ghost },
+      blast: { skin: C.brown, hair: C.hairBlack, a: C.grey, b: C.leather }, lamp: { skin: C.skin, hair: C.grey, a: C.mustard, b: C.black },
+      boss: { skin: C.warm, hair: C.hairBlack, a: C.black, b: C.waist }, time: { skin: C.deep, hair: C.grey, a: C.robe, b: C.time }
+    };
+    const heroFirst = B.count(); // every splat from here on belongs to the heroes
     const SK = Mt.skin(C.skin), flat = Mt.flat, glow = Mt.glow;
     const LEATH = Mt.leather(C.leather), BRASS = Mt.metal(C.brass), IRONM = Mt.metal(C.iron);
     const layer = env.OH_LAYER || '', all = layer === 'all';
@@ -247,7 +256,7 @@ module.exports = ({ makeBuilder, makeSculpt, KIT: K }) => {
       for (const [dx, dy, dz, s] of [[-0.25, 0.4, 0.22, 0.14], [-0.05, 0.6, 0.15, 0.13], [0.12, 0.42, 0.3, 0.13], [-0.3, 0.18, 0.3, 0.11]])
         S.rock([rx + dx, dy, rz + dz], s, ORE, { res: 0.025 });
       S.bake();
-      const F = HB.rig(PRX, PRZ, [1, 0]);
+      const F = HB.rig(PRX, PRZ, [1, 0]), SK = Mt.skin(C.tan); // weathered tan skin
       const shirt = Mt.cloth(C.denim, 0.22);
       const bd = HB.body(F, { shirt, trous: Mt.cloth(C.tweed, 0.25), boot: Mt.leather(C.boot), skin: SK, belt: LEATH, buckle: BRASS });
       const hd = HB.head(F, bd.head, { skin: SK, beard: 'long', beardRamp: C.grey, brow: C.grey.slice(1), eyes: 'squint', nose: 'hook' });
@@ -282,15 +291,18 @@ module.exports = ({ makeBuilder, makeSculpt, KIT: K }) => {
       if (full) for (let i = 0; i < 6; i++) S.rock([CX - 0.25 + (i % 3) * 0.25, 0.85 + 0.05 * (i % 2), CZ - 0.3 + Math.floor(i / 3) * 0.4], 0.18, ORE, { res: 0.03, tag: 'cart' });
       if (env.OH_NOBODY === '1') { S.bake(); } else {
         const f = out ? [0, 1] : [0, -1], hs = out ? -1 : 1; // hs: the side the cart is on
-        const F = HB.rig(CX - 0.78, CZ + (out ? -0.15 : 0.15), f);
+        // out in the cave he walks beside the cart, a hand on its rim; toward the tunnel he falls in behind it, pushing, so he passes
+        // through the doorway with it instead of through the rock (k: 1 in the open, 0 in the tunnel)
+        const k = Math.min(1, Math.max(0, (CZ + 4.1) / 1.3)), back = (1 - k) * 0.95;
+        const F = HB.rig(CX - 0.78 * k - 0.05 * (1 - k), CZ + (out ? -0.15 : 0.15) * k - f[1] * back, f), SK = Mt.skin(C.deep);
         const shirt = Mt.cloth(C.grey.slice(1), 0.15), glove = Mt.leather(C.leather.slice(1));
         const bd = HB.body(F, { shirt, trous: Mt.cloth(C.tweed, 0.3), boot: Mt.leather(C.boot), skin: SK, belt: LEATH, buckle: IRONM, legTags: ['legL', 'legR'] });
-        const hd = HB.head(F, bd.head, { skin: SK, beard: 'mutton', beardRamp: C.dark, brow: C.dark, nose: 'round', tash: 'droop' });
+        const hd = HB.head(F, bd.head, { skin: SK, beard: 'mutton', beardRamp: C.hairBlack, brow: C.hairBlack, nose: 'round', tash: 'droop' });
         HB.hats.cap(F, hd.top, 'body');
         braces(F, bd, Mt.cloth(C.red, 0.15));
         HB.box(F, [0.06, bd.hip - 0.03, -0.085], [0.03, 0.045, 0.01], Mt.cloth(C.red, 0.3), 'body', 0.004); // a rag in his back pocket
         const ao = { sleeve: shirt, rolled: true, cuff: flat(C.grey.slice(2)), skin: SK, glove };
-        const sr = bd.sh(-hs), rim = [-0.4 * hs, 0.86, 0.05];
+        const sr = bd.sh(-hs), rim = [-0.4 * hs * k - 0.06 * hs * (1 - k), 0.86, 0.05 + 0.38 * (1 - k)];
         HB.arm(F, sr, HB.elbow(sr, rim, [-0.03 * hs, -0.08, -0.02]), rim, { ...ao, tag: 'body' }); // a hand on the rim
         const sb = bd.sh(hs), hb = [0.16 * hs, 0.7, 0.0];
         HB.arm(F, sb, HB.elbow(sb, hb, [0.03 * hs, 0, -0.02]), hb, { ...ao, tag: 'armB', grip: false });
@@ -302,63 +314,46 @@ module.exports = ({ makeBuilder, makeSculpt, KIT: K }) => {
       }
     }
 
-    // ---- the Phantom Pick: the ghost of an old miner, still working the copper vein in the right wall. A hooded wraith with a
-    // drooping spectral beard, two lamp-bright eyes and a tail of mist where his legs were; shackles and a broken chain on his wrists.
-    // His pick glows, with runes down the haft and wisps streaming off the head. The pick turns about the grip in his hands ----
+    // ---- the Phantom Miner: the ghost of an old miner, working the same boulder as you from the other side. A hooded wraith with a
+    // drooping beard of mist, two lamp-bright eyes and a tail of mist where his legs were, broken shackles on his wrists; he swings a
+    // glowing pick with runes down the haft and wisps streaming off its head. Built in the strike pose, like the Miner ----
     if (on('phantom')) {
-      const va = 0.6, vy = 1.55, rr = RI * Math.sqrt(Math.max(0.02, 1 - Math.pow(vy / (H - 0.5), 2.2)));
-      const V = [Math.sin(va) * rr, vy, -Math.cos(va) * rr]; // the vein, where the point lands
       const n3 = (x, y, z, f) => B.n3(x * f, y * f, z * f) - 0.5;
-      let GH = { r: C.ghost.slice(1), em: true, mod: (x, y, z) => 0.35 * n3(x, y, z, 7) };
-      const GHB = { r: C.ghost.slice(1), em: true }, GHW = { r: C.ghost.slice(2), em: true }, VOID = { r: [C.black[0], C.ghost[0]] };
-      // the pick, drawn side-on to the camera so it reads as a pickaxe: the haft rises from the grip (lower left), the head crosses
-      // its top, and in the strike pose its point is in the vein
-      const Z = 0.3, at = (x, y, z = Z) => [V[0] + x, V[1] + y, V[2] + z];
-      const d = [0.62, 0.78], p = [0.78, -0.62]; // up the haft; across it, toward the point
-      const T = at(-p[0] * 0.5, -p[1] * 0.5), G = at(-p[0] * 0.5 - d[0] * 0.95, -p[1] * 0.5 - d[1] * 0.95);
-      const along = u => G.map((v, i) => v + (T[i] - v) * u);
-      S.tube([G, T.map((v, i) => v + [d[0] * 0.08, d[1] * 0.08, 0][i])], 0.03, 0.026, GH, { tag: 'pick', res: 0.006 }); // the haft
-      for (const u of [0.3, 0.42, 0.54, 0.66, 0.78]) S.ball(along(u).map((v, i) => v + [0, 0, 0.027][i]), 0.011, GHW, { tag: 'pick', res: 0.003 }); // runes
-      for (const u of [0.05, 0.18]) S.torus(along(u), 0.032, 0.008, GHB, { tag: 'pick', res: 0.003, ax: [[p[0], p[1], 0], [d[0], d[1], 0], [0, 0, 1]] }); // bindings
-      S.tube([T, at(-p[0] * 0.25 + d[0] * 0.03, -p[1] * 0.25 + d[1] * 0.03), at(-0.02, 0.0, 0.08)], t => 0.06 * (1 - t) + 0.004, null, GH, { tag: 'pick', res: 0.005 }); // the point, curving into the vein
-      S.tube([T, at(-p[0] * 0.75 + d[0] * 0.04, -p[1] * 0.75 + d[1] * 0.04), at(-p[0] * 0.98, -p[1] * 0.98)], t => 0.06 - 0.02 * t, null, GH, { tag: 'pick', res: 0.005 }); // the flat back
-      S.box(T, [0.07, 0.075, 0.06], GHB, { tag: 'pick', res: 0.004, rd: 0.02, ax: [[p[0], p[1], 0], [d[0], d[1], 0], [0, 0, 1]] }); // the eye of the head
-      S.ball(T.map((v, i) => v + [0, 0, 0.06][i]), 0.02, GHW, { tag: 'pick', res: 0.003 });
-      for (let i = 0; i < 6; i++) { const k = (i + 1) / 7, b = at(-p[0] * 0.98 - d[0] * 0.08 * k - 0.12 * k, -p[1] * 0.98 + 0.1 * k + 0.05 * Math.sin(i * 2.1), Z - 0.04 * i);
-        S.ball(b, 0.035 * (1 - k) + 0.008, GHB, { tag: 'pick', res: 0.004 }); } // wisps streaming off the back of the head
-      // the wraith, floating to the left of the grip and facing the vein
-      const F = HB.rig(G[0] - 0.42, G[2] - 0.04, [0.55, 0.85]), Y0 = G[1] + 0.12, P = (a, y, b) => [a, Y0 + y, b];
+      const F = HB.rig(OX + 0.97, OZ + 0.12, [-1, 0]), Y0 = 0.9, P = (a, y, b) => [a, Y0 + y, b];
       // dark and deep in the tail, brighter toward the hood; a mottle of mist all over
-      GH = { r: C.ghost.slice(0, 3), em: true, mod: (x, y, z) => 0.45 * n3(x, y, z, 6) + 0.9 * (y - Y0 - 0.1) };
+      const GH = { r: C.ghost.slice(0, 3), em: true, mod: (x, y, z) => 0.45 * n3(x, y, z, 6) + 0.9 * (y - Y0 - 0.1) };
+      const GHP = { r: C.ghost.slice(1, 3), em: true, mod: (x, y, z) => 0.3 * n3(x, y, z, 9) };
+      const GHB = { r: C.ghost.slice(1), em: true }, GHW = { r: C.ghost.slice(2), em: true }, VOID = { r: [C.black[0], C.ghost[0]] };
       const gt = 'ghost', R = 0.005;
-      HB.tube(F, [P(0, 0.08, 0), P(0, -0.18, -0.03), P(0.02, -0.42, -0.12), P(-0.03, -0.62, -0.3), P(0.02, -0.7, -0.5), P(0.06, -0.66, -0.62)], t => 0.15 * (1 - t) * (1 - t) + 0.008, null, GH, gt, R); // the robe, ending in a tail
+      HB.tube(F, [P(0, 0.08, 0), P(0, -0.18, -0.03), P(0.04, -0.42, -0.1), P(0.1, -0.58, -0.24), P(0.18, -0.62, -0.38), P(0.24, -0.56, -0.46)], t => 0.12 * (1 - t) * (1 - t) + 0.008, null, GH, gt, R); // the robe, ending in a tail
       for (let i = 0; i < 7; i++) { const a = -0.12 + 0.04 * i, l = 0.08 + 0.06 * K.hash(i, 61);
         HB.tube(F, [P(a, -0.12, 0.05 - Math.abs(a) * 0.4), P(a * 1.2, -0.12 - l, 0.02 - Math.abs(a) * 0.4)], 0.022, 0.003, GH, gt, R); } // ragged hem
-      HB.ball(F, P(0, 0.1, 0), [0.16, 0.1, 0.12], GH, gt, R); // shoulders
-      HB.tube(F, [P(0, 0.14, -0.02), P(0, 0.32, 0), P(0, 0.44, -0.08), P(0, 0.5, -0.18)], t => 0.135 * (1 - t * t) + 0.01, null, GH, gt, R); // the hood, its point flopping back
+      HB.ball(F, P(0, 0.1, 0), [0.14, 0.09, 0.1], GH, gt, R); // shoulders
+      HB.tube(F, [P(0, 0.14, -0.02), P(0, 0.32, 0), P(0, 0.44, -0.08), P(0, 0.5, -0.18)], t => 0.125 * (1 - t * t) + 0.01, null, GH, gt, R); // the hood, its point flopping back
       HB.ball(F, P(0, 0.29, 0.075), [0.095, 0.11, 0.065], VOID, gt, R); // the dark inside the hood
       for (const s of [-1, 1]) { HB.ball(F, P(s * 0.038, 0.31, 0.125), [0.026, 0.017, 0.012], GHW, gt, 0.002); HB.ball(F, P(s * 0.038, 0.312, 0.135), [0.012, 0.008, 0.006], { r: [C.ghost[3]], em: true }, gt, 0.0015) } // eyes
       for (let i = 0; i < 5; i++) { const a = -0.04 + 0.02 * i; HB.tube(F, [P(a, 0.25, 0.11), P(a * 1.3, 0.12, 0.13), P(a * 1.6 + 0.01 * Math.sin(i), 0.0 - 0.04 * K.hash(i, 62), 0.11)], 0.012, 0.003, GHB, gt, 0.003) } // a drooping beard of mist
-      // spectral arms out to the grip; the hands close on the haft (in the pick's part, so they stay on it)
-      const o0 = F.P(0, 0, 0), dG = [G[0] - o0[0], G[2] - o0[2]];
-      const gLocal = [dG[0] * F.side[0] + dG[1] * F.side[2], G[1] - Y0, dG[0] * F.fwd[0] + dG[1] * F.fwd[2]];
-      const grp = P(...gLocal), grp2 = P(gLocal[0] + 0.02, gLocal[1] + 0.04, gLocal[2] + 0.01);
-      for (const [s, h] of [[-1, grp], [1, grp2]]) {
-        const sh = P(s * 0.13, 0.1, 0);
-        HB.tube(F, [sh, [(sh[0] + h[0]) / 2, (sh[1] + h[1]) / 2 - 0.06, (sh[2] + h[2]) / 2], h], 0.045, 0.022, GH, gt, R);
-        HB.torus(F, HB.lerp(sh, h, 0.82), 0.026, 0.008, IRONM, gt, 0.003); // a shackle
+      // misty arms, both hands on the haft, and the pick: all one part that swings about the shoulders, as the Miner's does
+      const SH = y => [0, Y0 + 0.1 + y, 0], hR = [0.03, 0.79, 0.31], hL = [-0.02, 0.78, 0.21];
+      for (const [s, h] of [[1, hR], [-1, hL]]) {
+        const sh = [s * 0.13, Y0 + 0.1, 0], el = HB.elbow(sh, h, [s * 0.05, -0.07, -0.04]);
+        HB.tube(F, [sh, el, h], 0.045, 0.024, GH, 'arm', R);
+        HB.ball(F, h, [0.034, 0.04, 0.034], GHB, 'arm', 0.003);
+        HB.torus(F, HB.lerp(el, h, 0.7), 0.03, 0.008, IRONM, 'arm', 0.003); // a broken shackle
+        for (let i = 0; i < 3; i++) HB.torus(F, [h[0] + s * 0.01, h[1] - 0.05 - i * 0.032, h[2] - 0.05], 0.014, 0.005, IRONM, 'arm', 0.002);
       }
-      for (let i = 0; i < 4; i++) HB.torus(F, [grp[0] - 0.01, grp[1] - 0.06 - i * 0.035, grp[2] - 0.03], 0.016, 0.005, IRONM, gt, 0.002); // its broken chain
-      S.ball(G, 0.035, GHB, { tag: 'pick', res: 0.004 });
-      S.ball(along(0.13), 0.035, GHB, { tag: 'pick', res: 0.004 });
-      parts.pick = { pivot: G, slices: 3 }; parts.ghost = { pivot: F.P(0, Y0, 0), slices: 2 };
-      // ready = swung back up over the grip; strike drives the point into the vein. He bobs as he floats, and leans into the blow
-      pose = (t, dt, pup) => { let lift, bob = 0;
-        if (t < 1) { bob = Math.sin(t * Math.PI * 2); lift = 1 + 0.05 * bob; }
-        else if (t < 1.12) { const k = (t - 1) / 0.12; lift = 1 - k * k; }
-        else { const k = Math.min(1, (t - 1.12) / 0.38); lift = ease(k); }
-        pup.pose.pick = { pos: [0, 0.04 * bob, 0], turn: tn([0, 0, 1], lift * 70) };
-        pup.pose.ghost = { pos: [0.03 * (1 - lift), 0.04 * bob, 0] }; };
+      const grip = [0.01, 0.79, 0.12], tip = [-0.02, 0.62, 0.65];
+      const head = HB.pick(F, grip, tip, { tag: 'arm', wood: GHP, iron: GHB, eye: GHW, tipM: { r: [C.ghost[3]], em: true } });
+      for (const u of [0.35, 0.47, 0.59, 0.71, 0.83]) HB.ball(F, HB.lerp(grip, head, u).map((v, i) => v + [0.019, 0.004, 0][i]), 0.008, GHW, 'arm', 0.002); // runes
+      for (let i = 0; i < 6; i++) { const k = (i + 1) / 7; HB.ball(F, [tip[0] - 0.02 + 0.03 * Math.sin(i * 2.1), tip[1] + 0.42 + 0.06 * k, tip[2] - 0.08 * k - 0.12 * k * k], 0.03 * (1 - k) + 0.007, GHB, 'arm', 0.003); } // wisps off the back spike
+      parts.ghost = { pivot: F.P(0, Y0 - 0.3, 0), slices: 3 }; parts.arm = { pivot: F.P(...SH(0)), parent: 'ghost', slices: 2 };
+      // ready = the pick raised behind him (he faces the other way from the Miner, so his swing turns the other way); a slow float
+      pose = (t, dt, pup) => { let lift, bob = 0, squash = 0;
+        if (t < 1) { bob = Math.sin(t * Math.PI * 2); lift = 1 + 0.04 * bob; }
+        else if (t < 1.12) { const k = (t - 1) / 0.12; lift = 1 - k * k; if (k > 0.9) squash = 1; }
+        else { const k = Math.min(1, (t - 1.12) / 0.38); lift = ease(k); squash = Math.max(0, 1 - k * 3); }
+        pup.pose.arm = { rot: [0, 0, -lift * 120] };
+        pup.pose.ghost = { pos: [0, 0.035 * bob, 0], rot: [0, 0, -Math.max(0, lift) * 6 + squash * 4] }; };
     }
 
     // ---- the Blaster: crouched by a bundle of dynamite at the foot of a rock pile on the right. Red bandana with his goggles
@@ -374,10 +369,10 @@ module.exports = ({ makeBuilder, makeSculpt, KIT: K }) => {
       S.box([DX, 0.08, DZ], [0.02, 0.07, 0.12], flat(C.rope), { res: 0.006 }); // the string
       S.tube([[DX - 0.17, 0.12, DZ], [DX - 0.3, 0.06, DZ + 0.12], [DX - 0.45, 0.02, DZ + 0.1]], 0.008, 0.008, { r: [2, 3] }, { res: 0.005 }); // the fuse
       S.bake();
-      const F = HB.rig(BX - 1.3, BZ + 0.2, [0.95, 0.3]);
+      const F = HB.rig(BX - 1.3, BZ + 0.2, [0.95, 0.3]), SK = Mt.skin(C.brown);
       const shirt = Mt.cloth(C.grey.slice(0, 3), 0.25), vest = Mt.leather(C.leather);
       const bd = HB.body(F, { shirt, trous: Mt.cloth(C.trous, 0.2), boot: Mt.leather(C.boot), skin: SK, belt: LEATH, buckle: IRONM, crouch: 1 });
-      const hd = HB.head(F, bd.head, { skin: SK, beard: 'goatee', beardRamp: C.dark, brow: C.grey.slice(0, 2), nose: 'long', tash: 'handlebar' });
+      const hd = HB.head(F, bd.head, { skin: SK, beard: 'goatee', beardRamp: C.hairBlack, brow: C.hairBlack, nose: 'round', tash: 'handlebar' });
       HB.hats.bandana(F, hd.top, 'body');
       for (const [a, y, b] of [[0.07, -0.02, 0.1], [-0.08, -0.05, 0.09], [0.05, -0.1, 0.1]]) HB.ball(F, hd.at(a, y, b), 0.016, flat([C.black[0], C.black[1]]), 'body', 0.003); // soot
       const L = bd.lean;
@@ -438,10 +433,10 @@ module.exports = ({ makeBuilder, makeSculpt, KIT: K }) => {
     // ---- the Foreman: left of the rails with his pocket watch, facing the Miner. A lean, stiff man in a black suit, burgundy
     // waistcoat and red tie, a bowler, a waxed handlebar moustache, a whistle on a chain. On the call he points at the boulder ----
     if (on('boss')) {
-      const F = HB.rig(-2.25, 0.55, [0.9, 0.35]);
+      const F = HB.rig(-2.25, 0.55, [0.9, 0.35]), SK = Mt.skin(C.warm);
       const suit = Mt.cloth(C.black, 0.12);
       const bd = HB.body(F, { shirt: suit, trous: Mt.cloth(C.black, 0.1), boot: flat(C.black), skin: SK, belt: null });
-      const hd = HB.head(F, bd.head, { skin: SK, beard: 'none', tash: 'handlebar', beardRamp: C.dark, brow: C.dark, nose: 'long' });
+      const hd = HB.head(F, bd.head, { skin: SK, beard: 'none', tash: 'handlebar', beardRamp: C.hairBlack, brow: C.hairBlack, nose: 'round' });
       HB.hats.bowler(F, hd.top, 'body');
       HB.box(F, [0, bd.ch - 0.06, 0.088], [0.055, 0.13, 0.014], Mt.cloth(C.waist, 0.1), 'body', 0.004, null, 0.012); // the waistcoat
       HB.box(F, [0, bd.ch + 0.04, 0.1], [0.022, 0.05, 0.008], flat(C.grey.slice(2)), 'body', 0.003); // shirt front
@@ -474,7 +469,7 @@ module.exports = ({ makeBuilder, makeSculpt, KIT: K }) => {
     // glowing hourglass in both hands. He speeds up every timed thing in the mine; now and then he turns the hourglass over ----
     if (on('time')) {
       const X = 3.95, Z = -0.15, Y = 1.3;
-      const F0 = HB.rig(X, Z, [0, 1]), F = { ...F0, P: (a, y, b) => F0.P(a, y + Y - 0.5, b) }; // his own frame, lifted off the floor
+      const SK = Mt.skin(C.deep), F0 = HB.rig(X, Z, [0, 1]), F = { ...F0, P: (a, y, b) => F0.P(a, y + Y - 0.5, b) }; // his own frame, lifted off the floor
       const robe = Mt.cloth(C.robe, 0.2), TIME = glow(C.time), gt = 'body';
       HB.lathe(F, [0, 0.08, 0], 0.62, t => 0.17 - 0.08 * t, robe, gt, 0.006); // the robe
       for (let i = 0; i < 9; i++) { const a = (i / 9) * Math.PI * 2, r = 0.16, l = 0.12 + 0.14 * K.hash(i, 71);
@@ -482,7 +477,7 @@ module.exports = ({ makeBuilder, makeSculpt, KIT: K }) => {
       HB.lathe(F, [0, 0.3, 0], 0.03, 0.13, flat(C.brass.slice(1)), gt, 0.003); // a brass belt
       for (const [a, l] of [[-0.09, 0.1], [0.0, 0.14], [0.1, 0.08]]) { const z = Math.sqrt(Math.max(0, 0.145 * 0.145 - a * a));
         HB.tube(F, [[a, 0.3, z], [a, 0.3 - l, z + 0.01]], 0.003, 0.003, BRASS, gt, 0.002);
-        HB.ball(F, [a, 0.3 - l - 0.02, z + 0.012], [0.024, 0.024, 0.01], BRASS, gt, 0.003); HB.ball(F, [a, 0.3 - l - 0.02, z + 0.02], [0.017, 0.017, 0.004], flat(C.grey.slice(3)), gt, 0.002); } // pocket watches
+        HB.ball(F, [a, 0.3 - l - 0.02, z + 0.012], [0.024, 0.024, 0.01], BRASS, gt, 0.003); HB.ball(F, [a, 0.3 - l - 0.02, z + 0.02], [0.017, 0.017, 0.004], flat([C.wax[0]]), gt, 0.002); } // pocket watches
       for (let i = 0; i < 10; i++) { const a = -1.1 + 2.2 * K.hash(i, 72), y = 0.12 + 0.5 * K.hash(i, 73), r = 0.172 - 0.08 * ((y - 0.08) / 0.62);
         HB.ball(F, [Math.sin(a) * r, y, Math.cos(a) * r], 0.008, glow(C.time.slice(1)), gt, 0.002); } // stars on the robe
       HB.ball(F, [0, 0.66, 0], [0.13, 0.08, 0.09], robe, gt, 0.006); // shoulders
@@ -525,6 +520,7 @@ module.exports = ({ makeBuilder, makeSculpt, KIT: K }) => {
     S.bake();
 
     const W = B.finish({ cam: { target: [0, 2.2, -0.4], dist: 16.5, pitch: 0.3, yaw: 0 }, detail: +(env.DETAIL || 26), dither: +(env.DITHER || 0.25), ao: { k: +(env.AO || 0.55), range: 0.7 }, radius: 7 });
+    if (SLOTS[layer]) { W.ohSlots = {}; for (const [k, ids] of Object.entries(SLOTS[layer])) W.ohSlots[k] = ids.map(i => PAL[i]); W.ohFirst = heroFirst; }
     if (pose && !all) {
       const P2 = {};
       for (const [k, v] of Object.entries(parts)) P2[k] = { ...v, ids: tags[k] };
