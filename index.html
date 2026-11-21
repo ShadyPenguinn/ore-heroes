@@ -320,8 +320,8 @@ const blastOre=()=>lv('blaster')*mult('blaster')*(400*lampBoost()+0.5*tapOre());
 const blasterRate=()=>blastOre()/BLAST*timeSpeed();
 // Foreman calls per second: 1 every 10 s at level 1, +0.02 a second every level, doubled at milestones. No ceiling.
 const foremanCalls=()=>lv('foreman')?(0.1+0.02*(lv('foreman')-1))*mult('foreman')*timeSpeed():0;
-const foremanShort=()=>{const c=foremanCalls();return c<1?`1 swing/${Math.round(10/c*10)/10}s`:`${fmtN(c)}/s`};
-const foremanText=()=>{const c=foremanCalls();return c<1?`once every ${Math.round(10/c*10)/10} s`:`${fmtN(c)} swings a second`};
+const foremanShort=()=>{const c=foremanCalls();return c<1?`1 swing/${Math.round(10/c)/10}s`:`${fmtN(c)}/s`};
+const foremanText=()=>{const c=foremanCalls();return c<1?`once every ${Math.round(10/c)/10} s`:`${fmtN(c)} swings a second`};
 const autoRate=()=>carterRate()+phantomRate()+blasterRate()+foremanCalls()*tapOre();
 const nightHours=()=>Math.min(12,lv('lamp'));
 const nightPct=()=>Math.min(100,10+Math.max(0,lv('lamp')-12));
