@@ -125,8 +125,8 @@ img.ico3d{image-rendering:auto!important;object-fit:contain}
 .forge-shake{animation:fshake .18s}
 @keyframes fshake{25%{transform:translateX(-3px)}75%{transform:translateX(3px)}}
 .ftop{display:flex;align-items:center;gap:8px}.ftop .fpips{flex:1;min-width:0}
-.fact{min-width:92px;min-height:34px}
-.fstars{min-width:88px;text-align:right;font-family:var(--display);font-size:15px;color:var(--gold);white-space:nowrap}
+.fact{min-width:92px;min-height:34px;flex:none;margin-left:auto}
+.fstars:empty{display:none}.fstars{flex:none;text-align:right;font-family:var(--display);font-size:15px;color:var(--gold);white-space:nowrap}
 .fresult{position:absolute;left:0;right:0;bottom:0;padding:5px 10px;text-align:center;font:700 14px var(--display);color:var(--ember);background:linear-gradient(transparent,rgba(10,8,6,.85) 45%);pointer-events:none;opacity:0;transition:opacity .25s}
 .fresult.on{opacity:1}
 .apanel h3{margin:0;font:700 17px var(--display);letter-spacing:.04em}
@@ -152,7 +152,7 @@ img.ico3d{image-rendering:auto!important;object-fit:contain}
     </div>
     <div class="places" id="places"><button class="b sm on" data-v="mine">Mine</button><button class="b sm" data-v="forge">Forge</button><button class="b sm" data-v="army" style="display:none">Army</button><button class="b sm" data-v="explore" style="display:none">Explore</button></div>
     <div class="scene" id="scene"><canvas id="bd" width="480" height="210" aria-hidden="true"></canvas><canvas id="cv" width="960" height="420"></canvas><div class="taphint" id="taphint">Click the rock</div><div class="fresult" id="fresult"></div><div class="fresult" id="xresult"></div><div class="fvore"><small>Ore</small><span id="fvore">0</span></div><div class="fvturn">Turn sideways for the biggest view</div><button class="fvbtn" id="fvbtn" aria-label="Full view"></button></div>
-    <div class="ftrack" id="ftrack" style="display:none"><div class="ftop"><div class="fpips" id="fpipbox"><div class="fpipsin" id="fpips"></div></div><button class="b go fact" id="fact">Heat</button><span class="fstars" id="fstars"></span></div><div class="track idle" id="track"><div class="zone" id="zone"><i></i></div><div class="marker" id="marker"></div><div class="sparks" id="sparks"></div><div class="tlabel" id="tlabel"></div></div></div>
+    <div class="ftrack" id="ftrack" style="display:none"><div class="ftop"><div class="fpips" id="fpipbox"><div class="fpipsin" id="fpips"></div></div><span class="fstars" id="fstars"></span><button class="b go fact" id="fact">Heat</button></div><div class="track idle" id="track"><div class="zone" id="zone"><i></i></div><div class="marker" id="marker"></div><div class="sparks" id="sparks"></div><div class="tlabel" id="tlabel"></div></div></div>
   </div>
   <section class="panel apanel" id="apanel" style="display:none"></section>
   <section class="panel apanel" id="xpanel" style="display:none"></section>
@@ -828,10 +828,11 @@ for(const ev of ['gesturestart','gesturechange','gestureend','dblclick'])documen
 document.addEventListener('keydown',e=>{if(e.code==='Space'&&S.view==='forge'){e.preventDefault();tap()}});
 $('#cards').addEventListener('click',e=>{const b=e.target.closest('[data-buy]');if(b)return buy(b.dataset.buy);const c=e.target.closest('.card.cust .pic');if(c)openLook(c.closest('.card').dataset.k)});
 function refreshForge(){drawTrack();const on=S.forge&&S.view==='forge';$('#fpanel').style.display=on?'':'none';if(!on)return;
-  if(!known().length){$('#wpick').innerHTML='<span class="note">No recipes yet. The Blacksmith learns Swords at level '+SWORD_LV+'.</span>'}
+  if(!known().length){$('#wpick').dataset.k='';$('#wpick').innerHTML='<span class="note">No recipes yet. The Blacksmith learns Swords at level '+SWORD_LV+'.</span>'}
   const ks=known();if(!ks.includes(S.pick.w))S.pick.w='sword';S.pick.n=Math.max(1,Math.min(S.pick.n,foldLimit()));
-  if(ks.length)$('#wpick').innerHTML=ks.map(w=>`<button class="b sm wbtn${w===S.pick.w?' on':''}" data-w="${w}" aria-label="${WEAP[w].n}" ${F?'disabled':''}></button>`).join('');
-  if(ks.length)for(const b of $('#wpick').children)b.appendChild(weaponIcon(b.dataset.w));
+  // the picker is built once per set of recipes; after that only its highlight and disabled state change, so the icons never reload (they blinked)
+  const wk=ks.join(',');if(ks.length&&$('#wpick').dataset.k!==wk){$('#wpick').dataset.k=wk;$('#wpick').innerHTML=ks.map(w=>`<button class="b sm wbtn" data-w="${w}" aria-label="${WEAP[w].n}"></button>`).join('');for(const b of $('#wpick').children)b.appendChild(weaponIcon(b.dataset.w))}
+  if(ks.length)for(const b of $('#wpick').children){b.classList.toggle('on',b.dataset.w===S.pick.w);b.disabled=!!F}
   const n=S.pick.n,ore=blankCost(n);
   $('#fsize').textContent=`${n} Fold${n>1?'s':''}`;$('#fminus').disabled=!!F||n<=1;$('#fplus').disabled=!!F||n>=foldLimit();
   $('#fcost').textContent=`${fmtN(ore)} ore`;
