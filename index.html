@@ -81,6 +81,13 @@ img.ico3d{image-rendering:auto!important;object-fit:contain}
 .card .buy .b{font-variant-numeric:tabular-nums}
 .card.locked{opacity:.6;grid-template-columns:44px 1fr}
 .card.fresh{border-color:var(--ember);box-shadow:0 0 0 1px var(--ember) inset}
+/* a hero you can hire for the first time: the portrait pulses until you hire them; the place they joined pulses until you go there */
+@keyframes newPulse{0%,100%{box-shadow:0 0 0 0 rgba(255,140,60,0);filter:none}50%{box-shadow:0 0 0 2px var(--ember),0 0 14px 2px rgba(255,140,60,.75);filter:brightness(1.35)}}
+.card.fresh .pic{animation:newPulse 1.1s ease-in-out infinite}
+/* hired but never customised: the portrait pulses teal until you open it */
+@keyframes lookPulse{0%,100%{box-shadow:0 0 0 0 rgba(90,220,200,0);filter:none}50%{box-shadow:0 0 0 2px #5adcc8,0 0 14px 2px rgba(90,220,200,.7);filter:brightness(1.3)}}
+.card.lookme .pic{animation:lookPulse 1.3s ease-in-out infinite}
+.places .b.flash{animation:newPulse 1.1s ease-in-out infinite;border-color:var(--ember)}
 .note{color:var(--muted);font-size:12px;margin:0}
 .toast{position:fixed;z-index:200;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%) translateY(20px);background:var(--panel2);border:1px solid var(--ember);border-radius:10px;padding:9px 14px;opacity:0;transition:.3s;pointer-events:none;z-index:20;max-width:calc(100vw - 32px);text-align:center}
 .toast.show{opacity:1;transform:translateX(-50%)}
@@ -339,9 +346,11 @@ const nightText=()=>lv('lamp')?`for ${nightHours()} h at ${nightPct()}% while yo
 const costAt=(k,l)=>Math.ceil(HK[k].base*Math.pow(1.15,l));
 function costN(k,n){let c=0,l=lv(k);for(let i=0;i<n;i++)c+=costAt(k,l+i);return c}
 
-function fresh(){return{ore:0,mined:0,taps:0,blasts:0,h:{miner:1},seen:{miner:1},t:Date.now(),lastBackup:0,forge:0,view:'mine',forged:0,made:{},best:{},pick:{w:'sword',n:3},inv:[],nid:1,army:0,heroes:[],sel:0,explore:0,stage:1,renown:0,look:{},v:4}}
+function fresh(){return{ore:0,mined:0,taps:0,blasts:0,h:{miner:1},seen:{miner:1},t:Date.now(),lastBackup:0,forge:0,view:'mine',forged:0,made:{},best:{},pick:{w:'sword',n:3},inv:[],nid:1,army:0,heroes:[],sel:0,explore:0,stage:1,renown:0,look:{},looked:{},v:4}}
 function save(){S.t=Date.now();try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
-function load(){let d=null;try{d=JSON.parse(localStorage.getItem(KEY)||'null')}catch(e){}S=Object.assign(fresh(),d||{});S.h=Object.assign({miner:1},S.h);migrate()}
+function load(){let d=null;try{d=JSON.parse(localStorage.getItem(KEY)||'null')}catch(e){}const old=d&&!d.looked;S=Object.assign(fresh(),d||{});S.h=Object.assign({miner:1},S.h);migrate();
+  // saves from before the customise nudge: heroes already hired don't all start pulsing at once
+  if(old)for(const k in S.h)if(S.h[k])S.looked[k]=1}
 // v2 (Nov 19 evening): the first forge (auto smiths, 1M-ore swords) was replaced by the forging minigame; its forge levels and weapon counts go
 function migrate(){if((S.v||1)<2){for(const k of ['smith','smelter','axesmith','spearwright','shieldwright','hammersmith']){delete S.h[k];delete S.seen[k]}
   delete S.wpn;delete S.work;delete S.blows;S.forge=0;S.view='mine';S.ingots=0;S.forged=0;S.made={};S.best={};S.pick={w:'sword',n:3};S.v=2}
@@ -454,7 +463,7 @@ function popAt(at,txt,col){if(S.view==='forge')pops.push({x:at[0],y:at[1],txt,t:
 // the Swordsmith hones his blade, and every so often stops to read up on swords
 let studyT=6;
 function forgeLogic(dt){if(!S.forge)return;forgeTick(dt);if(lv('swordsmith')&&A.sword&&A.sword.seg==='idle'&&(studyT-=dt)<=0){studyT=7+Math.random()*6;A.sword.play('study');if(window.F3D)F3D.act('sword','study')}}
-function openForge(){S.forge=1;S.h.smith=S.h.smith||1;S.seen.smith=1;save();buildCards();setPlaces();toast(`With the Foreman keeping the Miner swinging, you can go to the forge. ${Tap} Forge.`)}
+function openForge(){S.forge=1;(S.notice=S.notice||{}).forge=1;S.h.smith=S.h.smith||1;S.seen.smith=1;save();buildCards();setPlaces();toast(`With the Foreman keeping the Miner swinging, you can go to the forge. ${Tap} Forge.`)}
 
 // automatic heroes run on their own clocks so the ore arrives in visible trips, strikes, calls and blasts
 const acc={carter:0,phantom:0,blaster:0,foreman:0,beat:0,lamp:0,time:0};
@@ -786,7 +795,7 @@ function lookIcon(k,el){const L=LOOK_LAYER[k],look=(S.look||{})[k];if(!L||!look|
     Promise.all([pic('art/icons/h-'+k+'.png'),pic('art/icons/h-'+k+'.slots.png')]).then(([im,sm])=>{const c=document.createElement('canvas'),W=c.width=im.width,H=c.height=im.height,x=c.getContext('2d',{willReadFrequently:true});
       x.drawImage(sm,0,0);const mask=x.getImageData(0,0,W,H).data;x.clearRect(0,0,W,H);x.drawImage(im,0,0);const d=x.getImageData(0,0,W,H),src=new Uint8ClampedArray(d.data);
       lookPaint(src,d.data,mask,0,0,W,[0,0,W,H],look,slots,lookFallback(src,mask,W,[[0,0,W,H]]));x.putImageData(d,0,0);el.src=lookIconCache[key]=c.toDataURL()}).catch(()=>{})})}
-function openLook(k){const h=HEROES.find(q=>q.k===k),slots=slotsOf(k);if(!slots)return;
+function openLook(k){const h=HEROES.find(q=>q.k===k),slots=slotsOf(k);if(!slots)return;if(!S.looked[k]){S.looked[k]=1;save();refreshCards()}
   const look=(S.look||(S.look={}))[k]||{},box=$('#lookbox');
   const row=(s,label)=>slots[s]?`<div class="lookrow"><div class="sw" data-s="${s}"><button class="def${look[s]?'':' on'}" data-c="" aria-label="As drawn">↺</button>${LOOK_SW[s].map(c=>`<button style="background:${c}" data-c="${c}" class="${look[s]===c?'on':''}" aria-label="${c}"></button>`).join('')}</div></div>`:'';
   box.innerHTML=`<div class="lookhead"><div class="pv"></div><div><b>${h.n}</b>${h.desc?`<p class="ldesc">${h.desc()}</p>`:''}</div></div>${row('skin','Skin')}${row('hair','Hair')}${row('a',LOOK_ROWS[k].a)}${row('b',LOOK_ROWS[k].b||'')}<button class="b go lookdone" data-done="1">Done</button>`;
@@ -804,12 +813,12 @@ function portrait(h){const i=icon3d('h-'+h.k,44,56);lookIcon(h.k,i);return i}
 function buildCards(){const box=$('#cards');box.innerHTML='';for(const h of HEROES){if(place(h)!==(S.view||'mine'))continue;const el=document.createElement('div');el.className='card';el.dataset.k=h.k;
   el.innerHTML=`<div class="pic"></div><div class="line"><b>${h.n}</b><span class="lv"></span><span class="what"></span></div><div class="buy"><button class="b go" data-buy="${h.k}"></button></div>`;
   el.querySelector('.pic').appendChild(portrait(h));box.appendChild(el)}refreshCards()}
-function revealCheck(){for(const pl of ['mine','forge']){if(pl==='forge'&&!S.forge)continue;for(const h of HEROES){if(place(h)!==pl||S.seen[h.k])continue;if(h.req&&h.req()){S.seen[h.k]=1;toast(`Someone new came to the ${pl}: the ${h.n}`);save();refreshCards()}break}}}
+function revealCheck(){for(const pl of ['mine','forge']){if(pl==='forge'&&!S.forge)continue;for(const h of HEROES){if(place(h)!==pl||S.seen[h.k])continue;if(h.req&&h.req()){S.seen[h.k]=1;if(pl!==S.view){(S.notice=S.notice||{})[pl]=1;setPlaces()}toast(`Someone new came to the ${pl}: the ${h.n}`);save();refreshCards()}break}}}
 function refreshCards(){let shownLocked=false;
   for(const h of HEROES){const el=document.querySelector(`.card[data-k="${h.k}"]`);if(!el)continue;const L=lv(h.k),seen=S.seen[h.k];
     if(!seen){if(shownLocked){el.style.display='none';continue}shownLocked=true;el.style.display='';el.className='card locked';el.querySelector('b').textContent='???';el.querySelector('.lv').textContent='';el.querySelector('.what').textContent=h.hint;el.querySelector('.buy').style.display='none';el.querySelector('.pic').style.visibility='hidden';continue}
     el.style.display='';el.querySelector('.pic').style.visibility='';el.querySelector('.buy').style.display='';el.querySelector('b').textContent=h.n;
-    el.className='card'+(L?'':' fresh')+(L&&slotsOf(h.k)?' cust':'');
+    el.className='card'+(L?'':' fresh')+(L&&slotsOf(h.k)?' cust':'')+(L&&slotsOf(h.k)&&!S.looked[h.k]?' lookme':'');
     el.querySelector('.lv').textContent=L?`Lv ${L}`:'';
     el.querySelector('.what').textContent=L?h.what():'';
     
@@ -857,7 +866,7 @@ $('#fweap').addEventListener('click',e=>{const t=e.target.closest('button');if(!
 $('#fpipbox').addEventListener('click',e=>{const t=e.target.closest('.pip.f');if(!t||F)return;const k=+t.dataset.n;S.pick.n=k;S.pick.auto=k>=foldLimit();refreshForge();save()});
 function setPlaces(){$('#places').classList.toggle('on',!!S.forge);$('#res').classList.toggle('three',!!S.forge);$('#wchip').style.display=S.forge?'':'none';
   if(!S.forge)S.view='mine';if(!S.army&&S.view==='army')S.view='mine';if(!S.explore&&S.view==='explore')S.view='mine';$('#places').classList.toggle('three',!!S.army&&!S.explore);$('#places').classList.toggle('four',!!S.explore);$('[data-v=army]').style.display=S.army?'':'none';$('[data-v=army]').classList.toggle('dot',!!S.armyNew&&S.view!=='army');if(S.view==='army')S.armyNew=0;$('[data-v=explore]').style.display=S.explore?'':'none';
-  for(const b of $('#places').children)b.classList.toggle('on',b.dataset.v===S.view);refreshArmy();refreshExplore();
+  if(S.notice)delete S.notice[S.view];for(const b of $('#places').children){b.classList.toggle('on',b.dataset.v===S.view);b.classList.toggle('flash',!!(S.notice&&S.notice[b.dataset.v]))}refreshArmy();refreshExplore();
   const done=S.view==='forge'?fhintGone:hintGone;$('#taphint').textContent=S.view==='forge'?`${Tap} to heat a blank, then strike`:`${Tap} the rock`;refreshForge();$('#taphint').style.opacity=done||S.view==='army'||S.view==='explore'?0:1}
 $('#places').addEventListener('click',e=>{const b=e.target.closest('[data-v]');if(!b||!S.forge||b.dataset.v===S.view)return;slide={from:S.view,t:0};S.view=b.dataset.v;amode='hero';pops.length=0;parts.length=0;setPlaces();buildCards();save()});
 let resetArm=false;
