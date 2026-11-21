@@ -34,7 +34,8 @@ for set_, order in SETS.items():
             continue
         a = rgb(n)
         sp = os.path.join(FR, n + '.slots.png')
-        sl = np.asarray(Image.open(sp).convert('L')) if os.path.exists(sp) else None
+        # the slot is in the red channel (multi.js writes 60 x slot there), not the brightness
+        sl = np.asarray(Image.open(sp).convert('RGB'))[..., 0] if os.path.exists(sp) else None
         for j, spot in enumerate(order):
             keep = owner[None, :].repeat(bg.shape[0], 0) == j
             out = np.where(keep[..., None], a, bg).astype(np.uint8)
