@@ -125,15 +125,15 @@ img.ico3d{image-rendering:auto!important;object-fit:contain}
 @keyframes fshake{25%{transform:translateX(-3px)}75%{transform:translateX(3px)}}
 .ftop{display:flex;align-items:center;gap:8px}.fcost{flex:1;min-width:0;font:600 13px var(--body);color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.fcost.short{color:#e05a4a}
 .pip.f{cursor:pointer;color:var(--muted)}.pip.f.in{background:var(--ember-soft);color:var(--ember);border-color:rgba(255,140,60,.45)}.pip.f.sel{background:var(--ember);color:#1b120b;border-color:var(--ember);box-shadow:0 0 0 2px rgba(255,140,60,.3)}
-/* the recipes, down the left of the art from the top */
-.fweap{position:absolute;left:6px;top:6px;z-index:3;display:none;flex-direction:column;gap:4px}.fweap.on{display:flex}
+/* the recipes, in a row along the bottom left of the art */
+.fweap{position:absolute;left:6px;bottom:6px;z-index:3;display:none;flex-direction:row;gap:4px}.fweap.on{display:flex}
 .fweap button{width:var(--wb,38px);height:var(--wb,38px);padding:0;border-radius:9px;border:1px solid rgba(255,255,255,.14);background:rgba(10,8,6,.55);display:grid;place-items:center;cursor:pointer}
 .fweap button.on{border-color:var(--ember);background:rgba(90,45,20,.7);box-shadow:0 0 0 1px var(--ember)}.fweap button:disabled{opacity:.55;cursor:default}.fweap button.on:disabled{opacity:1}
 .fweap img{width:calc(var(--wb,38px) - 6px);height:calc(var(--wb,38px) - 6px);image-rendering:pixelated}
-.scene.full .fweap{top:calc(max(10px,env(safe-area-inset-top,0px)) + 50px);left:max(10px,env(safe-area-inset-left,0px))}
+.scene.full .fweap{bottom:max(10px,env(safe-area-inset-bottom,0px));left:max(10px,env(safe-area-inset-left,0px))}
 .fact{min-width:92px;min-height:34px;flex:none;margin-left:auto}
 /* the stars of the blank on the anvil, on the art just above the Perfect / Good / Miss line */
-.fvstars{position:absolute;left:0;right:0;bottom:30px;text-align:center;font:700 17px var(--display);color:var(--gold);text-shadow:0 1px 0 #000,0 0 6px rgba(0,0,0,.9);pointer-events:none;opacity:0;transition:opacity .25s}.fvstars.on{opacity:1}
+.fvstars{position:absolute;left:0;right:0;padding-left:var(--fwr,0px);bottom:30px;text-align:center;font:700 17px var(--display);color:var(--gold);text-shadow:0 1px 0 #000,0 0 6px rgba(0,0,0,.9);pointer-events:none;opacity:0;transition:opacity .25s}.fvstars.on{opacity:1}
 .fresult{position:absolute;left:0;right:0;bottom:0;padding:5px 10px;text-align:center;font:700 14px var(--display);color:var(--ember);background:linear-gradient(transparent,rgba(10,8,6,.85) 45%);pointer-events:none;opacity:0;transition:opacity .25s}
 .fresult.on{opacity:1}
 .apanel h3{margin:0;font:700 17px var(--display);letter-spacing:.04em}
@@ -158,7 +158,7 @@ img.ico3d{image-rendering:auto!important;object-fit:contain}
       <div class="chip" id="wchip" style="display:none"><small>Forged</small><b id="wpns">0</b></div>
     </div>
     <div class="places" id="places"><button class="b sm on" data-v="mine">Mine</button><button class="b sm" data-v="forge">Forge</button><button class="b sm" data-v="army" style="display:none">Army</button><button class="b sm" data-v="explore" style="display:none">Explore</button></div>
-    <div class="scene" id="scene"><canvas id="bd" width="480" height="210" aria-hidden="true"></canvas><canvas id="bgl" width="960" height="420" aria-hidden="true"></canvas><canvas id="cv" width="960" height="420"></canvas><div class="taphint" id="taphint">Click the rock</div><div class="fweap" id="fweap"></div><div class="fvstars" id="fvstars"></div><div class="fresult" id="fresult"></div><div class="fresult" id="xresult"></div><div class="fvore"><small>Ore</small><span id="fvore">0</span></div><div class="fvturn">Turn sideways for the biggest view</div><button class="fvbtn" id="fvbtn" aria-label="Full view"></button></div>
+    <div class="scene" id="scene"><canvas id="bd" width="480" height="210" aria-hidden="true"></canvas><canvas id="bgl" width="960" height="420" aria-hidden="true"></canvas><canvas id="cv" width="960" height="420"></canvas><div class="taphint" id="taphint">Click the rock</div><div class="fweap" id="fweap"></div><div class="fvstars" id="fvstars"></div><div class="fresult" id="fresult" style="padding-left:calc(var(--fwr,0px) + 10px)"></div><div class="fresult" id="xresult"></div><div class="fvore"><small>Ore</small><span id="fvore">0</span></div><div class="fvturn">Turn sideways for the biggest view</div><button class="fvbtn" id="fvbtn" aria-label="Full view"></button></div>
     <div class="ftrack" id="ftrack" style="display:none"><div class="ftop"><div class="fpips" id="fpipbox"><div class="fpipsin" id="fpips"></div></div><span class="fcost" id="fcost"></span><button class="b go fact" id="fact">Heat</button></div><div class="track idle" id="track"><div class="zone" id="zone"><i></i></div><div class="marker" id="marker"></div><div class="sparks" id="sparks"></div><div class="tlabel" id="tlabel"></div></div></div>
   </div>
   <section class="panel apanel" id="apanel" style="display:none"></section>
@@ -833,7 +833,7 @@ const ICON_FULL='<svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M2
 window.SCN={w:480,h:210,s:1,v:0};
 function layoutScene(){const box=$('#scene'),cv=$('#cv'),w=box.clientWidth,h=box.clientHeight;if(!w||!h)return;
   const full=box.classList.contains('full'),s=Math.min(Math.max(w/480,h/210),w/480*(full?1.3:1.06)),cw=480*s,ch=210*s;
-  box.style.setProperty('--wb',Math.max(26,Math.min(40,Math.floor((h-12-16)/5)))+'px');for(const c of [cv,$('#bgl')])Object.assign(c.style,{width:cw+'px',height:ch+'px',left:(w-cw)/2+'px',top:(h-ch)/2+'px'});window.SCN={w,h,s,v:window.SCN.v+1}}
+  box.style.setProperty('--wb',Math.max(26,Math.min(40,Math.floor((w-12-16)/10)))+'px');for(const c of [cv,$('#bgl')])Object.assign(c.style,{width:cw+'px',height:ch+'px',left:(w-cw)/2+'px',top:(h-ch)/2+'px'});window.SCN={w,h,s,v:window.SCN.v+1}}
 function setFull(on){$('#scene').classList.toggle('full',on);document.body.classList.toggle('fv',on);$('#fvbtn').innerHTML=on?ICON_SHUT:ICON_FULL;$('#fvbtn').setAttribute('aria-label',on?'Leave full view':'Full view');layoutScene()}
 $('#fvbtn').addEventListener('pointerdown',e=>{e.stopPropagation();e.preventDefault();setFull(!$('#scene').classList.contains('full'))});
 new ResizeObserver(layoutScene).observe($('#scene'));setFull(false);
@@ -846,6 +846,8 @@ function refreshForge(){const on=S.forge&&S.view==='forge'&&!slide,fw=$('#fweap'
   // the column is built once per set of recipes; after that only its highlight and disabled state change, so the icons never reload (they blinked)
   const wk=ks.join(',');if(fw.dataset.k!==wk){fw.dataset.k=wk;fw.innerHTML=ks.map(w=>`<button data-w="${w}" aria-label="${WEAP[w].n}"></button>`).join('');for(const b of fw.children)b.appendChild(weaponIcon(b.dataset.w))}
   for(const b of fw.children){b.classList.toggle('on',b.dataset.w===S.pick.w);b.disabled=!!F}
+  // the Perfect line and the stars centre in the room to the right of the row
+  const fwr=(fw.offsetWidth?fw.offsetLeft+fw.offsetWidth+4:0)+'px';if($('#scene').style.getPropertyValue('--fwr')!==fwr)$('#scene').style.setProperty('--fwr',fwr);
 }
 function weaponIcon(w){return icon3d('w-'+w,40,40)}
 $('#fact').addEventListener('click',()=>{if(F)quench();else heat();refreshForge()});
