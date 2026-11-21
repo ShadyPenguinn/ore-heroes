@@ -13,6 +13,7 @@
 // OH_PORTRAIT=1: no hall, just the hero, softly lit, for the portrait icons (tools/portraits.js).
 // Knobs as in the mine: HD, TEX, PROPS, ATMOS (0 turns each off), LIGHT, AO, DITHER, MIST. Render at --px 1 (tools/render.js does).
 const HEROES = require('./heroes.js');
+const WM = require('./weapon-models.js'); // the finished weapons on the rack, the same sculpts as the weapon icons
 module.exports = ({ makeBuilder, makeSculpt, KIT: K }) => {
   const PAL = [
     0x070605, 0x14100e, 0x211a16, 0x30261f, 0x42352b, 0x584738, 0x725d4a, // 0-6 stone (umber)
@@ -41,8 +42,10 @@ module.exports = ({ makeBuilder, makeSculpt, KIT: K }) => {
     0x8a96a8, 0xc8d2de, 0xf4f8ff, // 72-74 bright steel
     0x7a1810, 0xc8321e, 0xff7a20, // 75-77 hot metal
     0x4a2a18, 0x2a1810, // 78-79 dark leather
-    ...HEROES.COLOURS // 80 on: the heroes' own colours (art/src/heroes.js)
+    ...HEROES.COLOURS, // 80 on: the heroes' own colours (art/src/heroes.js)
+    ...WM.COLOURS // then the weapons' (art/src/weapon-models.js), from WBASE
   ];
+  const WBASE = 80 + HEROES.COLOURS.length;
   function build(seed) {
     const env = (typeof process !== 'undefined' && process.env) || {};
     const layer = env.OH_LAYER || '', all = layer === 'all', on = k => all || layer === k;
@@ -432,7 +435,10 @@ module.exports = ({ makeBuilder, makeSculpt, KIT: K }) => {
     }
 
     // ---- a finished weapon in its rack column ----
-    if (layer.startsWith('w-')) { const k = layer.slice(2); weapon(k, [RX + COLS[k], 2.08, RZ + 0.12], {}); }
+    // each hangs from its peg: the sword hilt up, the others head up, the shield flat to the board; sized as the old rack shapes
+    const RACKW = { sword: [0.83, 1.64, Math.PI], axe: [0.85, 1.77, 0], spear: [1.2, 1.64, 0], shield: [0.5, 1.63, 0], hammer: [0.94, 1.7, 0] };
+    if (layer.startsWith('w-') && RACKW[layer.slice(2)]) { const k = layer.slice(2), [ws, wy, wr] = RACKW[k];
+      WM.draw(S, B, k, { base: WBASE, at: [RX + COLS[k], wy, RZ + 0.12], s: ws, roll: wr, resK: +(env.WRES || 3) }); }
 
     // ---- the furnace flames ----
     if (on('fire')) {
