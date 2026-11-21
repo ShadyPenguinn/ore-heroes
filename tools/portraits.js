@@ -20,6 +20,7 @@ const P = {
   // the forge heroes (art/src/forge.js)
   smith: ['smith', [0.56, 1.1, 0.52], 1.0, 12, 1.12, null, 'forge'],
   swordsmith: ['sword', [-2.32, 1.1, -1.98], 1.0, 12, 0.5, null, 'forge'],
+  bowyer: ['bow', [-0.92, 1.12, 1.77], 1.0, 12, 0.5, null, 'forge'],
   axesmith: ['axe', [3.52, 1.1, -0.88], -1.0, 12, 1.12, null, 'forge'],
   spearwright: ['spear', [-3.62, 1.1, -0.23], 1.0, 12, 1.12, null, 'forge'],
   shieldwright: ['shield', [3.32, 1.1, 1.07], -1.0, 12, 1.12, null, 'forge'],
@@ -49,7 +50,7 @@ if os.path.exists(sys.argv[4]):
 }
 // the weapon icons (art/icons/w-<kind>.png, 160x160) from art/src/weapons.js, each weapon sculpted alone at icon scale and laid
 // corner to corner (the shield faces front). A wide first render finds where the weapon sits; the second fills the icon with it.
-for (const k of ['sword', 'axe', 'spear', 'shield', 'hammer']) {
+for (const k of ['sword', 'axe', 'spear', 'shield', 'hammer', 'bow']) {
   if (only.length && !only.includes('w-' + k)) continue;
   const SC = path.join(ROOT, 'art', 'src', 'weapons.js'), env = l => ({ ...process.env, OH_LAYER: l });
   const shot = (zoom, T, out, l) => execFileSync('node', [CLI, 'render', SC, '--t', '0', '--clean', '--tone', 'off', '--px', '1', '--w', '160', '--h', '160',
