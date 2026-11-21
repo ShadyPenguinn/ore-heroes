@@ -104,10 +104,9 @@ img.ico3d{image-rendering:auto!important;object-fit:contain}
 .lookdone{margin-top:14px;width:100%}
 .panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:8px}
 .panel .row{flex-wrap:wrap;justify-content:flex-start}
-.wpick{flex-wrap:wrap}.wpick .b{min-height:34px}
-.fsize{min-width:72px;text-align:center;font-variant-numeric:tabular-nums}
 .ftrack{margin-top:8px;display:flex;flex-direction:column;gap:6px}
-.fpips{overflow:hidden;height:32px}.fpipsin{display:flex;gap:8px;transition:transform .28s ease;padding:1px}
+/* five circles wide; before a blank they pick its Folds (lower counts scroll off to the left), while forging they show the strikes */
+.fpips{overflow:hidden;height:32px;width:186px;flex:none;scrollbar-width:none}.fpips::-webkit-scrollbar{display:none}.fpips.pickf{overflow-x:auto;touch-action:pan-x}.fpipsin{display:flex;gap:8px;transition:transform .28s ease;padding:1px}
 .pip{flex:0 0 30px;width:30px;height:30px;border-radius:50%;border:1px solid var(--line);display:grid;place-items:center;font-size:12px;font-weight:700;color:var(--muted);background:var(--panel)}
 .pip.p{background:var(--ember);color:#1b120b;border-color:var(--ember)}
 .pip.g{background:var(--ember-soft);color:var(--ember);border-color:var(--ember)}
@@ -124,7 +123,14 @@ img.ico3d{image-rendering:auto!important;object-fit:contain}
 @keyframes spark{to{transform:translate(var(--dx),var(--dy));opacity:0}}
 .forge-shake{animation:fshake .18s}
 @keyframes fshake{25%{transform:translateX(-3px)}75%{transform:translateX(3px)}}
-.ftop{display:flex;align-items:center;gap:8px}.ftop .fpips{flex:1;min-width:0}
+.ftop{display:flex;align-items:center;gap:8px}.fcost{flex:1;min-width:0;font:600 13px var(--body);color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.fcost.short{color:#e05a4a}
+.pip.f{cursor:pointer;color:var(--muted)}.pip.f.in{background:var(--ember-soft);color:var(--ember);border-color:rgba(255,140,60,.45)}.pip.f.sel{background:var(--ember);color:#1b120b;border-color:var(--ember);box-shadow:0 0 0 2px rgba(255,140,60,.3)}
+/* the recipes, down the left of the art from the top */
+.fweap{position:absolute;left:6px;top:6px;z-index:3;display:none;flex-direction:column;gap:4px}.fweap.on{display:flex}
+.fweap button{width:var(--wb,38px);height:var(--wb,38px);padding:0;border-radius:9px;border:1px solid rgba(255,255,255,.14);background:rgba(10,8,6,.55);display:grid;place-items:center;cursor:pointer}
+.fweap button.on{border-color:var(--ember);background:rgba(90,45,20,.7);box-shadow:0 0 0 1px var(--ember)}.fweap button:disabled{opacity:.55;cursor:default}.fweap button.on:disabled{opacity:1}
+.fweap img{width:calc(var(--wb,38px) - 6px);height:calc(var(--wb,38px) - 6px);image-rendering:pixelated}
+.scene.full .fweap{top:calc(max(10px,env(safe-area-inset-top,0px)) + 50px);left:max(10px,env(safe-area-inset-left,0px))}
 .fact{min-width:92px;min-height:34px;flex:none;margin-left:auto}
 /* the stars of the blank on the anvil, on the art just above the Perfect / Good / Miss line */
 .fvstars{position:absolute;left:0;right:0;bottom:30px;text-align:center;font:700 17px var(--display);color:var(--gold);text-shadow:0 1px 0 #000,0 0 6px rgba(0,0,0,.9);pointer-events:none;opacity:0;transition:opacity .25s}.fvstars.on{opacity:1}
@@ -152,15 +158,11 @@ img.ico3d{image-rendering:auto!important;object-fit:contain}
       <div class="chip" id="wchip" style="display:none"><small>Forged</small><b id="wpns">0</b></div>
     </div>
     <div class="places" id="places"><button class="b sm on" data-v="mine">Mine</button><button class="b sm" data-v="forge">Forge</button><button class="b sm" data-v="army" style="display:none">Army</button><button class="b sm" data-v="explore" style="display:none">Explore</button></div>
-    <div class="scene" id="scene"><canvas id="bd" width="480" height="210" aria-hidden="true"></canvas><canvas id="bgl" width="960" height="420" aria-hidden="true"></canvas><canvas id="cv" width="960" height="420"></canvas><div class="taphint" id="taphint">Click the rock</div><div class="fvstars" id="fvstars"></div><div class="fresult" id="fresult"></div><div class="fresult" id="xresult"></div><div class="fvore"><small>Ore</small><span id="fvore">0</span></div><div class="fvturn">Turn sideways for the biggest view</div><button class="fvbtn" id="fvbtn" aria-label="Full view"></button></div>
-    <div class="ftrack" id="ftrack" style="display:none"><div class="ftop"><div class="fpips" id="fpipbox"><div class="fpipsin" id="fpips"></div></div><button class="b go fact" id="fact">Heat</button></div><div class="track idle" id="track"><div class="zone" id="zone"><i></i></div><div class="marker" id="marker"></div><div class="sparks" id="sparks"></div><div class="tlabel" id="tlabel"></div></div></div>
+    <div class="scene" id="scene"><canvas id="bd" width="480" height="210" aria-hidden="true"></canvas><canvas id="bgl" width="960" height="420" aria-hidden="true"></canvas><canvas id="cv" width="960" height="420"></canvas><div class="taphint" id="taphint">Click the rock</div><div class="fweap" id="fweap"></div><div class="fvstars" id="fvstars"></div><div class="fresult" id="fresult"></div><div class="fresult" id="xresult"></div><div class="fvore"><small>Ore</small><span id="fvore">0</span></div><div class="fvturn">Turn sideways for the biggest view</div><button class="fvbtn" id="fvbtn" aria-label="Full view"></button></div>
+    <div class="ftrack" id="ftrack" style="display:none"><div class="ftop"><div class="fpips" id="fpipbox"><div class="fpipsin" id="fpips"></div></div><span class="fcost" id="fcost"></span><button class="b go fact" id="fact">Heat</button></div><div class="track idle" id="track"><div class="zone" id="zone"><i></i></div><div class="marker" id="marker"></div><div class="sparks" id="sparks"></div><div class="tlabel" id="tlabel"></div></div></div>
   </div>
   <section class="panel apanel" id="apanel" style="display:none"></section>
   <section class="panel apanel" id="xpanel" style="display:none"></section>
-  <section class="panel fpanel" id="fpanel" style="display:none">
-    <div class="seg wpick" id="wpick"></div>
-    <div class="row frow"><button class="b sm" id="fminus" aria-label="Fewer Folds">−</button><b id="fsize" class="fsize"></b><button class="b sm" id="fplus" aria-label="More Folds">+</button><span class="note" id="fcost"></span></div>
-  </section>
   <div class="cards" id="cards"></div>
   <section class="panel">
     <div class="row" style="justify-content:space-between"><h2>Save</h2><span class="note" id="backup"></span></div>
@@ -410,16 +412,21 @@ function trackShake(){const t=$('#track');t.classList.remove('forge-shake');void
 // the Folds: one long row of pips. Struck ones slide off to the left once three are done, and new ones slide in from the right
 function drawTrack(){const on=S.forge&&S.view==='forge';$('#ftrack').style.display=on?'':'none';if(!on){$('#fresult').classList.remove('on');return}
   const t=$('#track');t.classList.toggle('idle',!F);$('#zone').style.width=zoneW()+'%';if(F)$('#zone').style.left=F.zl+'%';$('#marker').style.left=(F?F.pos:50)+'%';
-  const n=F?F.n:Math.min(S.pick.n,foldLimit()),res=F?F.res:[];let st=0,h='';
-  for(let i=0;i<n;i++){const r=res[i];if(r==='P')st++;else st=0;h+=`<span class="pip ${r==='P'?'p':r==='G'?'g':r?'m':''}${F&&i===res.length&&!F.done?' now':''}">${r==='P'?perfectStars(st):r==='G'?'1':r?'✕':i+1}</span>`}
+  const n=F?F.n:Math.min(S.pick.n,foldLimit()),res=F?F.res:[],L=foldLimit();let st=0,h='';
+  if(!F)for(let i=1;i<=L;i++)h+=`<span class="pip f${i<n?' in':i===n?' sel':''}" data-n="${i}">${i}</span>`;
+  else for(let i=0;i<n;i++){const r=res[i];if(r==='P')st++;else st=0;h+=`<span class="pip ${r==='P'?'p':r==='G'?'g':r?'m':''}${F&&i===res.length&&!F.done?' now':''}">${r==='P'?perfectStars(st):r==='G'?'1':r?'✕':i+1}</span>`}
   if($('#fpips').dataset.h!==h){$('#fpips').dataset.h=h;$('#fpips').innerHTML=h}
   const ks=known(),ore=blankCost(n);
   $('#tlabel').textContent=F?'':!ks.length?`The Blacksmith learns Swords at level ${SWORD_LV}`:S.ore<ore?`Need ${fmtN(ore)} ore. Dig in the Mine.`:`${Tap} to heat a ${n}-Fold ${WEAP[S.pick.w].n} blank (${fmtN(ore)} ore)`;
   const sc=F?scoreOf(F.res):0,fv=$('#fvstars');if(F)fv.textContent=`★${sc} ${GR[gradeOf(sc)].n}`;fv.classList.toggle('on',!!F);
   const msg=F?(F.res.length?F.msg:''):lastResult,fr=$('#fresult');if(msg)fr.textContent=msg;fr.classList.toggle('on',!!msg);
   const fa=$('#fact'),q=F&&!F.done&&F.res.length;fa.textContent=F?'Quench':S.ore<ore&&ks.length?'Need ore':'Heat';fa.disabled=F?!q:(S.ore<ore||!ks.length);
-  // measured last, once the stars and the button have their text
-  const vis=Math.max(2,Math.floor(($('#fpipbox').clientWidth+6)/38-.1));$('#fpips').style.transform=`translateX(${-Math.max(0,Math.min(res.length,n-1)-(vis-1))*38}px)`}
+  const fc=$('#fcost');fc.textContent=ks.length&&!F?`${fmtN(ore)} ore`:'';fc.classList.toggle('short',!F&&S.ore<ore);
+  // idle: the circles scroll, the highest five in view; forging: struck ones slide off to the left once three are done
+  const box=$('#fpipbox'),pk=!F;const keep=()=>{box.scrollLeft=n>L-5?1e6:Math.max(0,(n-5)*38)}; // the picked circle in view, at the right if it isn't among the top five
+  if(box.classList.contains('pickf')!==pk){box.classList.toggle('pickf',pk);if(pk)keep();else box.scrollLeft=0}
+  if(pk){$('#fpips').style.transform='';if(box.dataset.L!==L+'/'+n&&box.clientWidth){box.dataset.L=L+'/'+n;keep()}}
+  else{const vis=Math.max(2,Math.floor((box.clientWidth+6)/38-.1));$('#fpips').style.transform=`translateX(${-Math.max(0,Math.min(res.length,n-1)-(vis-1))*38}px)`}}
 function strike(){if(!F||F.done)return;const now=performance.now(),w=zoneW(),p=F.pos;let r;
   if(F.last&&now-F.last<280)r='O';else if(p>=F.zl+w*.3&&p<=F.zl+w*.7)r='P';else if(p>=F.zl&&p<=F.zl+w)r='G';else r='M';
   F.last=now;F.res.push(r);let streak=0;for(let i=F.res.length-1;i>=0&&F.res[i]==='P';i--)streak++;
@@ -825,7 +832,7 @@ const ICON_FULL='<svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M2
 window.SCN={w:480,h:210,s:1,v:0};
 function layoutScene(){const box=$('#scene'),cv=$('#cv'),w=box.clientWidth,h=box.clientHeight;if(!w||!h)return;
   const full=box.classList.contains('full'),s=Math.min(Math.max(w/480,h/210),w/480*(full?1.3:1.06)),cw=480*s,ch=210*s;
-  for(const c of [cv,$('#bgl')])Object.assign(c.style,{width:cw+'px',height:ch+'px',left:(w-cw)/2+'px',top:(h-ch)/2+'px'});window.SCN={w,h,s,v:window.SCN.v+1}}
+  box.style.setProperty('--wb',Math.max(26,Math.min(40,Math.floor((h-12-16)/5)))+'px');for(const c of [cv,$('#bgl')])Object.assign(c.style,{width:cw+'px',height:ch+'px',left:(w-cw)/2+'px',top:(h-ch)/2+'px'});window.SCN={w,h,s,v:window.SCN.v+1}}
 function setFull(on){$('#scene').classList.toggle('full',on);document.body.classList.toggle('fv',on);$('#fvbtn').innerHTML=on?ICON_SHUT:ICON_FULL;$('#fvbtn').setAttribute('aria-label',on?'Leave full view':'Full view');layoutScene()}
 $('#fvbtn').addEventListener('pointerdown',e=>{e.stopPropagation();e.preventDefault();setFull(!$('#scene').classList.contains('full'))});
 new ResizeObserver(layoutScene).observe($('#scene'));setFull(false);
@@ -833,20 +840,18 @@ new ResizeObserver(layoutScene).observe($('#scene'));setFull(false);
 for(const ev of ['gesturestart','gesturechange','gestureend','dblclick'])document.addEventListener(ev,e=>e.preventDefault(),{passive:false});
 document.addEventListener('keydown',e=>{if(e.code==='Space'&&S.view==='forge'){e.preventDefault();tap()}});
 $('#cards').addEventListener('click',e=>{const b=e.target.closest('[data-buy]');if(b)return buy(b.dataset.buy);const c=e.target.closest('.card.cust .pic');if(c)openLook(c.closest('.card').dataset.k)});
-function refreshForge(){drawTrack();const on=S.forge&&S.view==='forge';$('#fpanel').style.display=on?'':'none';if(!on)return;
-  if(!known().length){$('#wpick').dataset.k='';$('#wpick').innerHTML='<span class="note">No recipes yet. The Blacksmith learns Swords at level '+SWORD_LV+'.</span>'}
-  const ks=known();if(!ks.includes(S.pick.w))S.pick.w='sword';S.pick.n=Math.max(1,Math.min(S.pick.n,foldLimit()));
-  // the picker is built once per set of recipes; after that only its highlight and disabled state change, so the icons never reload (they blinked)
-  const wk=ks.join(',');if(ks.length&&$('#wpick').dataset.k!==wk){$('#wpick').dataset.k=wk;$('#wpick').innerHTML=ks.map(w=>`<button class="b sm wbtn" data-w="${w}" aria-label="${WEAP[w].n}"></button>`).join('');for(const b of $('#wpick').children)b.appendChild(weaponIcon(b.dataset.w))}
-  if(ks.length)for(const b of $('#wpick').children){b.classList.toggle('on',b.dataset.w===S.pick.w);b.disabled=!!F}
-  const n=S.pick.n,ore=blankCost(n);
-  $('#fsize').textContent=`${n} Fold${n>1?'s':''}`;$('#fminus').disabled=!!F||n<=1;$('#fplus').disabled=!!F||n>=foldLimit();
-  $('#fcost').textContent=`${fmtN(ore)} ore`;
+function refreshForge(){const on=S.forge&&S.view==='forge'&&!slide,fw=$('#fweap'),ks=on?known():[];if(S.forge&&!F){if(!known().includes(S.pick.w))S.pick.w='sword';S.pick.n=S.pick.auto!==false?foldLimit():Math.max(1,Math.min(S.pick.n,foldLimit()))}
+  drawTrack();fw.classList.toggle('on',on&&ks.length>0);if(!on)return;
+  // the column is built once per set of recipes; after that only its highlight and disabled state change, so the icons never reload (they blinked)
+  const wk=ks.join(',');if(fw.dataset.k!==wk){fw.dataset.k=wk;fw.innerHTML=ks.map(w=>`<button data-w="${w}" aria-label="${WEAP[w].n}"></button>`).join('');for(const b of fw.children)b.appendChild(weaponIcon(b.dataset.w))}
+  for(const b of fw.children){b.classList.toggle('on',b.dataset.w===S.pick.w);b.disabled=!!F}
 }
 function weaponIcon(w){return icon3d('w-'+w,40,40)}
 $('#fact').addEventListener('click',()=>{if(F)quench();else heat();refreshForge()});
-$('#fpanel').addEventListener('click',e=>{const t=e.target.closest('button');if(!t)return;
-  if(t.dataset.w&&!F){S.pick.w=t.dataset.w}else if(t.id==='fminus'&&!F)S.pick.n--;else if(t.id==='fplus'&&!F)S.pick.n++;refreshForge();save()});
+$('#fweap').addEventListener('pointerdown',e=>e.stopPropagation());
+$('#fweap').addEventListener('click',e=>{const t=e.target.closest('button');if(!t||F)return;S.pick.w=t.dataset.w;refreshForge();save()});
+// a fold circle picks the blank's size; the highest keeps following the Blacksmith's limit as he levels
+$('#fpipbox').addEventListener('click',e=>{const t=e.target.closest('.pip.f');if(!t||F)return;const k=+t.dataset.n;S.pick.n=k;S.pick.auto=k>=foldLimit();refreshForge();save()});
 function setPlaces(){$('#places').classList.toggle('on',!!S.forge);$('#res').classList.toggle('three',!!S.forge);$('#wchip').style.display=S.forge?'':'none';
   if(!S.forge)S.view='mine';if(!S.army&&S.view==='army')S.view='mine';if(!S.explore&&S.view==='explore')S.view='mine';$('#places').classList.toggle('three',!!S.army&&!S.explore);$('#places').classList.toggle('four',!!S.explore);$('[data-v=army]').style.display=S.army?'':'none';$('[data-v=army]').classList.toggle('dot',!!S.armyNew&&S.view!=='army');if(S.view==='army')S.armyNew=0;$('[data-v=explore]').style.display=S.explore?'':'none';
   for(const b of $('#places').children)b.classList.toggle('on',b.dataset.v===S.view);refreshArmy();refreshExplore();
