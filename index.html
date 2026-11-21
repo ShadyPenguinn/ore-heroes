@@ -39,7 +39,7 @@ body{font-family:var(--body);font-size:14px;line-height:1.45;padding:0 max(16px,
 .chip.ore b{color:var(--ember)}
 .scene{position:relative;border-radius:12px;overflow:hidden;border:1px solid var(--line);background:#0c0a09;aspect-ratio:480/250;touch-action:manipulation;user-select:none;-webkit-user-select:none;cursor:pointer}
 .scene canvas{position:absolute;inset:0;width:100%;height:100%;image-rendering:pixelated;image-rendering:crisp-edges}
-.scene #cv{inset:auto;left:0;top:0}
+.scene #cv,.scene #bgl{inset:auto;left:0;top:0}
 /* behind the stage: the mine's cave, blurred and dimmed, filling the rest of a taller box */
 .scene #bd{object-fit:cover;filter:blur(7px) brightness(.5);transform:scale(1.15);transition:opacity .3s}
 /* phones: the art runs edge to edge */
@@ -151,7 +151,7 @@ img.ico3d{image-rendering:auto!important;object-fit:contain}
       <div class="chip" id="wchip" style="display:none"><small>Forged</small><b id="wpns">0</b></div>
     </div>
     <div class="places" id="places"><button class="b sm on" data-v="mine">Mine</button><button class="b sm" data-v="forge">Forge</button><button class="b sm" data-v="army" style="display:none">Army</button><button class="b sm" data-v="explore" style="display:none">Explore</button></div>
-    <div class="scene" id="scene"><canvas id="bd" width="480" height="210" aria-hidden="true"></canvas><canvas id="cv" width="960" height="420"></canvas><div class="taphint" id="taphint">Click the rock</div><div class="fresult" id="fresult"></div><div class="fresult" id="xresult"></div><div class="fvore"><small>Ore</small><span id="fvore">0</span></div><div class="fvturn">Turn sideways for the biggest view</div><button class="fvbtn" id="fvbtn" aria-label="Full view"></button></div>
+    <div class="scene" id="scene"><canvas id="bd" width="480" height="210" aria-hidden="true"></canvas><canvas id="bgl" width="960" height="420" aria-hidden="true"></canvas><canvas id="cv" width="960" height="420"></canvas><div class="taphint" id="taphint">Click the rock</div><div class="fresult" id="fresult"></div><div class="fresult" id="xresult"></div><div class="fvore"><small>Ore</small><span id="fvore">0</span></div><div class="fvturn">Turn sideways for the biggest view</div><button class="fvbtn" id="fvbtn" aria-label="Full view"></button></div>
     <div class="ftrack" id="ftrack" style="display:none"><div class="ftop"><div class="fpips" id="fpipbox"><div class="fpipsin" id="fpips"></div></div><span class="fstars" id="fstars"></span><button class="b go fact" id="fact">Heat</button></div><div class="track idle" id="track"><div class="zone" id="zone"><i></i></div><div class="marker" id="marker"></div><div class="sparks" id="sparks"></div><div class="tlabel" id="tlabel"></div></div></div>
   </div>
   <section class="panel apanel" id="apanel" style="display:none"></section>
@@ -169,7 +169,6 @@ img.ico3d{image-rendering:auto!important;object-fit:contain}
 </div>
 <div class="toast" id="toast"></div>
 <div class="lookbg" id="lookbg"><div class="lookbox" id="lookbox"></div></div>
-<script type="importmap">{"imports":{"three":"./lib/three.module.min.js"}}</script>
 <script>
 'use strict';
 const $=s=>document.querySelector(s);
@@ -412,7 +411,7 @@ function drawTrack(){const on=S.forge&&S.view==='forge';$('#ftrack').style.displ
   const t=$('#track');t.classList.toggle('idle',!F);$('#zone').style.width=zoneW()+'%';if(F)$('#zone').style.left=F.zl+'%';$('#marker').style.left=(F?F.pos:50)+'%';
   const n=F?F.n:Math.min(S.pick.n,foldLimit()),res=F?F.res:[];let st=0,h='';
   for(let i=0;i<n;i++){const r=res[i];if(r==='P')st++;else st=0;h+=`<span class="pip ${r==='P'?'p':r==='G'?'g':r?'m':''}${F&&i===res.length&&!F.done?' now':''}">${r==='P'?perfectStars(st):r==='G'?'1':r?'✕':i+1}</span>`}
-  $('#fpips').innerHTML=h;
+  if($('#fpips').dataset.h!==h){$('#fpips').dataset.h=h;$('#fpips').innerHTML=h}
   const ks=known(),ore=blankCost(n);
   $('#tlabel').textContent=F?'':!ks.length?`The Blacksmith learns Swords at level ${SWORD_LV}`:S.ore<ore?`Need ${fmtN(ore)} ore. Dig in the Mine.`:`${Tap} to heat a ${n}-Fold ${WEAP[S.pick.w].n} blank (${fmtN(ore)} ore)`;
   const sc=F?scoreOf(F.res):0;$('#fstars').textContent=F?`★${sc} ${GR[gradeOf(sc)].n}`:'';
@@ -482,7 +481,7 @@ function cartFrame(p){const n=atlas.cart.z.length-1;let dir,fi;
 function draw(dt){
   if(window.M3D)return drawMine3D(dt);
   ctx.save();if(shake>0){ctx.translate(Math.round((Math.random()-.5)*6*shake),Math.round((Math.random()-.5)*6*shake));shake=Math.max(0,shake-dt)}
-  const bg=atlas.sprites.bg;ctx.drawImage(img,bg[0],bg[1],bg[2],bg[3],-3,-3,486,216);
+  bgBlit(img,atlas.sprites.bg,'mine');
   // the Lamplighter: the lanterns burn brighter with his levels
   const L=lv('lamp');for(const g of LANTERNS)glow(g.x,g.y,22+Math.min(14,L*.6),'255,190,90',.1+Math.min(.25,.03*L)+.03*Math.sin(clock*2+g.x));
   const nx=nextHero(),isNext=k=>!!(nx&&nx.k===k&&S.seen[k]);
@@ -533,7 +532,13 @@ let placeOX=0,forgeDrawn=false;
 let bdOn=null;const bdEl=$('#bd');
 // the blurred backdrop around the stage: that place's empty background, stretched to fill the art box
 function bdPaint(w){const at=w==='forge'?fatlas:atlas,im=w==='forge'?fimg:img;if(!at||!im)return;const b=at.sprites.bg;bdEl.getContext('2d').drawImage(im,b[0],b[1],b[2],b[3],0,0,480,210)}
-function drawScene(dt){ctx.clearRect(0,0,480,210);forgeDrawn=mineDrawn=false;placeOX=0;drawScene2(dt);{const on=!slide&&(S.view==='mine'||S.view==='forge')?S.view:'';if(on!==bdOn){bdOn=on;if(on)bdPaint(on);bdEl.style.opacity=on?1:0}}if(!forgeDrawn&&window.F3D)F3D.hide();if(!mineDrawn&&window.M3D)M3D.hide()}
+// the still background of the mine or forge sits on its own canvas under the scene and is painted once, so each repaint only
+// draws the heroes, glows and numbers; while the scene slides or shakes it is drawn into the scene as before
+const bgl=$('#bgl'),bgx=bgl.getContext('2d');bgx.setTransform(2,0,0,2,0,0);bgx.imageSmoothingEnabled=false;let bglKey='',bglUsed=false,bglShown=true;
+function bgBlit(im,bg,key){if(!slide&&shake<=0){if(bglKey!==key){bglKey=key;bgx.clearRect(0,0,480,210);bgx.drawImage(im,bg[0],bg[1],bg[2],bg[3],-3,-3,486,216)}bglUsed=true;return}
+  ctx.drawImage(im,bg[0],bg[1],bg[2],bg[3],-3,-3,486,216)}
+function drawScene(dt){bglUsed=false;drawScene1(dt);if(bglUsed!==bglShown){bglShown=bglUsed;bgl.style.visibility=bglUsed?'':'hidden'}}
+function drawScene1(dt){ctx.clearRect(0,0,480,210);forgeDrawn=mineDrawn=false;placeOX=0;drawScene2(dt);{const on=!slide&&(S.view==='mine'||S.view==='forge')?S.view:'';if(on!==bdOn){bdOn=on;if(on)bdPaint(on);bdEl.style.opacity=on?1:0}}if(!forgeDrawn&&window.F3D)F3D.hide();if(!mineDrawn&&window.M3D)M3D.hide()}
 function drawScene2(dt){if(!slide)return drawPlace(S.view,dt);slide.t=Math.min(1,slide.t+dt/.45);
   const k=slide.t<.5?2*slide.t*slide.t:1-Math.pow(-2*slide.t+2,2)/2,PL=['mine','forge','army','explore'],dir=PL.indexOf(S.view)>PL.indexOf(slide.from)?1:-1;
   ctx.save();placeOX=Math.round(-dir*k*480);ctx.translate(placeOX,0);drawPlace(slide.from,dt);ctx.restore();
@@ -542,7 +547,7 @@ function drawScene2(dt){if(!slide)return drawPlace(S.view,dt);slide.t=Math.min(1
 function drawForge(dt){
   if(window.F3D)return drawForge3D(dt);
   ctx.save();if(shake>0){ctx.translate(Math.round((Math.random()-.5)*5*shake),Math.round((Math.random()-.5)*5*shake));shake=Math.max(0,shake-dt)}
-  const bg=fatlas.sprites.bg;ctx.drawImage(fimg,bg[0],bg[1],bg[2],bg[3],-3,-3,486,216);
+  bgBlit(fimg,fatlas.sprites.bg,'forge');
   glow(158,74,60+4*Math.sin(clock*3),'255,150,60',.16);
   A.fire.draw();
   // the rack: your best weapon of each kind hangs in its column, with a glint in its grade's colour
@@ -756,7 +761,7 @@ function lookPaint(src,dst,mask,n0,n1,W,box,look,slots,fb){const R=SLOTK.map(s=>
     if(!src[o+3])continue;const m=mask[o],r=m?R[Math.round(m/60)-1]:null;if(r){lookPixel(r,dst,o);continue}
     // a pixel the mask missed (a dithered or blended edge) but drawn in a changed slot's colours still takes that slot's colour
     if(!m&&fb){const i=fb.get((src[o]<<16)|(src[o+1]<<8)|src[o+2]),q=i?R[i-1]:null;if(q)lookPixel(q,dst,o)}}}
-function lookInit(which,img,sl,at){const W=img.width,H=img.height,cv=document.createElement('canvas');cv.width=W;cv.height=H;const ctx=cv.getContext('2d',{willReadFrequently:true});
+function lookInit(which,img,sl,at){const W=img.width,H=img.height,cv=document.createElement('canvas');cv.width=W;cv.height=H;const ctx=cv.getContext('2d');
   ctx.drawImage(sl,0,0);const mask=ctx.getImageData(0,0,W,H).data;ctx.clearRect(0,0,W,H);ctx.drawImage(img,0,0);const work=ctx.getImageData(0,0,W,H);
   LK[which]={cv,ctx,mask,work,orig:new Uint8ClampedArray(work.data),at};return cv}
 const lookFb={};
@@ -819,7 +824,7 @@ const ICON_FULL='<svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M2
 window.SCN={w:480,h:210,s:1,v:0};
 function layoutScene(){const box=$('#scene'),cv=$('#cv'),w=box.clientWidth,h=box.clientHeight;if(!w||!h)return;
   const full=box.classList.contains('full'),s=Math.min(Math.max(w/480,h/210),w/480*(full?1.3:1.06)),cw=480*s,ch=210*s;
-  Object.assign(cv.style,{width:cw+'px',height:ch+'px',left:(w-cw)/2+'px',top:(h-ch)/2+'px'});window.SCN={w,h,s,v:window.SCN.v+1}}
+  for(const c of [cv,$('#bgl')])Object.assign(c.style,{width:cw+'px',height:ch+'px',left:(w-cw)/2+'px',top:(h-ch)/2+'px'});window.SCN={w,h,s,v:window.SCN.v+1}}
 function setFull(on){$('#scene').classList.toggle('full',on);document.body.classList.toggle('fv',on);$('#fvbtn').innerHTML=on?ICON_SHUT:ICON_FULL;$('#fvbtn').setAttribute('aria-label',on?'Leave full view':'Full view');layoutScene()}
 $('#fvbtn').addEventListener('pointerdown',e=>{e.stopPropagation();e.preventDefault();setFull(!$('#scene').classList.contains('full'))});
 new ResizeObserver(layoutScene).observe($('#scene'));setFull(false);
@@ -854,9 +859,11 @@ $('#savefile').onclick=async()=>{S.lastBackup=Date.now();save();const d=new Date
 $('#loadfile').onclick=()=>$('#loadinput').click();
 $('#loadinput').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const j=JSON.parse(r.result);if(!j||j.game!=='ore-heroes'||!j.S)throw 0;S=Object.assign(fresh(),j.S);migrate();save();setPlaces();buildCards();toast('Save loaded')}catch(err){toast("That file isn't an Ore Heroes save")}};r.readAsText(f);e.target.value=''};
 
-let last=0,lastSave=0,lastUi=0,hiddenAt=0;
+let last=0,lastSave=0,lastUi=0,hiddenAt=0,lastDraw=0,drawDt=0;
 function frame(now){const dt=last?Math.min(.1,(now-last)/1000):0;last=now;clock+=dt;
-  for(const a of Object.values(A))a.step(dt);logic(dt);forgeLogic(dt);exploreLogic(dt);if(!S.forge&&lv('foreman'))openForge();drawScene(dt);
+  for(const a of Object.values(A))a.step(dt);logic(dt);forgeLogic(dt);exploreLogic(dt);if(!S.forge&&lv('foreman'))openForge();
+  // the scene repaints at most 30 times a second: the heroes animate at 12 frames a second, so 60 repaints only spend battery
+  drawDt+=dt;if(now-lastDraw>=31||slide){lastDraw=now;drawScene(drawDt);drawDt=0}
   if(now-lastUi>200){lastUi=now;$('#ore').textContent=$('#fvore').textContent=fmtN(S.ore);if(S.forge){$('#wpns').textContent=fmtN(S.forged);if(S.view==='forge'&&!F)refreshForge()}$('#ops').textContent=fmtN(autoRate());revealCheck();refreshCards();$('#backup').textContent=S.lastBackup?`Last backup ${new Date(S.lastBackup).toLocaleDateString()}`:'Never backed up'}
   if(now-lastSave>5000){lastSave=now;save()}
   requestAnimationFrame(frame)}
@@ -879,13 +886,6 @@ Promise.all([fetch('art/mine.json').then(r=>r.json()),pic('art/mine.png'),fetch(
   if(S.forged)fhintGone=true;setPlaces();
   awayGrant((Date.now()-(S.t||Date.now()))/1000);S.seen.miner=1;if(S.taps>=3){hintGone=true;$('#taphint').style.opacity=0}
   buildCards();requestAnimationFrame(frame)});
-</script>
-<script type="module">
-// the mine and the forge in live 3D; without WebGL, or if the models don't load, that place keeps its 2D art
-const sc=document.getElementById('scene'),c=document.createElement('canvas'),gl=!!(c.getContext('webgl2')||c.getContext('webgl'));
-const go=(file,set)=>gl?import(file).then(m=>m.start(sc)).then(set).catch(e=>console.warn('3D off:',file,e)):null;
-// the mine is drawn from its splat art (art/mine.png); mine3d.js, the live 3D mine, is kept but no longer loaded
-// the forge is drawn from its splat art too (art/forge.png); forge3d.js, the live 3D forge, is kept but no longer loaded
 </script>
 <script>
 if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js').catch(()=>{});
