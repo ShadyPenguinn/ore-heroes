@@ -149,6 +149,9 @@ img.ico3d{image-rendering:auto!important;object-fit:contain}
 .fresult.on{opacity:1}
 .apanel h3{margin:0;font:700 17px var(--display);letter-spacing:.04em}
 .ahead{display:flex;align-items:center;gap:10px}.ahead .grow{flex:1;min-width:0}
+.ahead .hpic{flex:0 0 auto;width:40px;height:50px;border-radius:8px;background:#0c0a09;overflow:hidden}.ahead .hpic canvas{display:block;image-rendering:pixelated}
+.card.hcard{cursor:pointer}.card.hcard .what.dim{color:var(--muted,#8a8070);font-weight:400}
+.card.hcard .wic .ic{width:40px;height:40px;border:1px solid var(--line);border-radius:8px;display:grid;place-items:center;background:var(--panel2)}.card.hcard .wic .ic img,.card.hcard .wic .ic canvas{max-width:34px;max-height:34px}
 .aw{display:flex;gap:10px;align-items:center}.aw .ic{flex:0 0 auto;width:56px;height:56px;border:1px solid var(--line);border-radius:10px;display:grid;place-items:center;background:var(--panel2)}
 .aw .ic canvas,.aw .ic img{width:48px;height:48px;image-rendering:pixelated}
 .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:4px 10px;font-size:13px}.stats span{color:var(--muted)}.stats b{float:right;font-variant-numeric:tabular-nums}
@@ -612,13 +615,15 @@ const HDEF=[{face:'male',hair:'short',look:{skin:'#b07a4c',hair:'#2a2a30'}},{fac
   {face:'fem',hair:'bun',look:{skin:'#d09a6c',hair:'#5a3a24'}},{face:'male',hair:'bald',look:{skin:'#4a2a18',hair:'#2a2a30'}},{face:'fem',hair:'long',look:{skin:'#f6d2b0',hair:'#f2d27a'}}];
 function heroDefaults(h,i){const d=HDEF[i%HDEF.length];if(!h.face)h.face=d.face;if(!h.hair)h.hair=d.hair;if(!h.look)h.look={...d.look};return h}
 let catlas=null,cimg=null;
-const heroKind=h=>{const it=h.eq&&itemById(h.eq);return it&&catlas.sprites['b-'+it.w+'-0']?it.w:'none'};
+const heroKind=h=>{const it=h.eq&&itemById(h.eq);return it&&catlas.sprites['b-'+it.w+'-0-0']?it.w:'none'};
+// each spot has its own act by the fire (art/src/camp.js ACTS): a 3 s loop of 18 frames; heroes start their loops at different times
+const ACT_N=18,ACT_T=3,actFrame=i=>Math.floor((((clock+i*1.3)%ACT_T)+ACT_T)%ACT_T/ACT_T*ACT_N)%ACT_N;
 // the order to draw the spots in, back to front (spots 4 and 5 stand furthest back, 2 and 3 sit nearest the fire)
 const SPOT_ORDER=[4,5,0,1,2,3];
 const hcache=[];
-function heroCanvas(i){const h=S.heroes[i];if(!h||!catlas)return null;const kind=heroKind(h),key=JSON.stringify([kind,h.face,h.hair,h.look]);
-  if(hcache[i]&&hcache[i].key===key)return hcache[i];
-  const st=LK.camp,at=catlas,names=['b-'+kind+'-'+i,'h-'+h.face+'-'+h.hair+'-'+i],k=at.k||1;
+function heroCanvas(i,f=0){const h=S.heroes[i];if(!h||!catlas)return null;const kind=heroKind(h),key=JSON.stringify([kind,h.face,h.hair,h.look]);
+  if(!hcache[i]||hcache[i].key!==key)hcache[i]={key,fr:[]};const hf=hcache[i].fr;if(hf[f])return hf[f];
+  const st=LK.camp,at=catlas,names=['b-'+kind+'-'+i+'-'+f,'h-'+h.face+'-'+h.hair+'-'+i+'-'+f],k=at.k||1;
   const sp=names.map(n=>at.sprites[n]).filter(Boolean);if(!sp.length)return null;
   // the canvas covers both sprites, in the atlas's own (full size) pixels
   const x0=Math.min(...sp.map(s=>s[4]*k)),y0=Math.min(...sp.map(s=>s[5]*k)),x1=Math.max(...sp.map(s=>s[4]*k+s[2])),y1=Math.max(...sp.map(s=>s[5]*k+s[3]));
@@ -628,9 +633,14 @@ function heroCanvas(i){const h=S.heroes[i];if(!h||!catlas)return null;const kind
       if(slots){lookPaint(st.orig,st.work.data,st.mask,0,0,st.cv.width,box,look,slots,lookFallback(st.orig,st.mask,st.cv.width,[box]));st.ctx.putImageData(st.work,0,0,box[0],box[1],box[2],box[3])}
       c.drawImage(st.cv,s[0],s[1],s[2],s[3],s[4]*k-x0,s[5]*k-y0,s[2],s[3])}
     else c.drawImage(cimg,s[0],s[1],s[2],s[3],s[4]*k-x0,s[5]*k-y0,s[2],s[3])});
-  return hcache[i]={key,cv,x:x0/k,y:y0/k,w:(x1-x0)/k,h:(y1-y0)/k,k}}
+  return hf[f]={cv,x:x0/k,y:y0/k,w:(x1-x0)/k,h:(y1-y0)/k,k,hx:x0,hy:y0}}
+// a hero's face for their card: the top of their head sprite (frame 0), recoloured, on a small dark tile
+function heroFace(i,W=44,H=56){const c=document.createElement('canvas');c.width=W;c.height=H;const hc=heroCanvas(i,0),h=S.heroes[i];if(!hc)return c;
+  const s=catlas.sprites['h-'+h.face+'-'+h.hair+'-'+i+'-0'];if(!s)return c;const x=c.getContext('2d');x.imageSmoothingEnabled=false;
+  const sx=s[4]*hc.k-hc.hx,sy=s[5]*hc.k-hc.hy,sw=s[2],sh=Math.min(s[3],Math.round(s[2]*1.2)),sc=Math.min(W/sw,H/sh)*.95;
+  x.drawImage(hc.cv,sx,sy,sw,sh,(W-sw*sc)/2,(H-sh*sc)/2,sw*sc,sh*sc);return c}
 // where a hero's head and feet are on the stage
-function heroBox(i){const hc=heroCanvas(i);if(!hc)return null;const hs=catlas.sprites['h-'+S.heroes[i].face+'-'+S.heroes[i].hair+'-'+i];
+function heroBox(i){const hc=heroCanvas(i);if(!hc)return null;const hs=catlas.sprites['h-'+S.heroes[i].face+'-'+S.heroes[i].hair+'-'+i+'-0'];
   return{cx:hc.x+hc.w/2,top:hs?hs[5]:hc.y,foot:hc.y+hc.h,x:hc.x,y:hc.y,w:hc.w,h:hc.h}}
 function drawArmy(dt){
   const bg=catlas.sprites.bg;bgBlit(cimg,bg,'camp');
@@ -638,26 +648,35 @@ function drawArmy(dt){
   for(const i of SPOT_ORDER){const h=S.heroes[i];if(!h)continue;const hc=heroCanvas(i);if(!hc)continue;const b=heroBox(i);
     if(i===S.sel){ctx.save();ctx.fillStyle='rgba(255,200,110,.3)';ctx.beginPath();ctx.ellipse(b.cx,b.foot-2,13,3.5,0,0,Math.PI*2);ctx.fill();ctx.restore()}
     if(h.fresh)glow(b.cx,b.top+b.h*.35,22,'255,150,60',.25+.2*Math.sin(clock*6));
-    ctx.drawImage(hc.cv,hc.x,hc.y,hc.w,hc.h)}
+    const hf=heroCanvas(i,actFrame(i))||hc;ctx.drawImage(hf.cv,hf.x,hf.y,hf.w,hf.h)}
   {const L=catlas.heroes.fire.idle.f;sprC(L[Math.floor((clock%1)*L.length)])}
   ctx.save();ctx.font='bold 8px system-ui,sans-serif';ctx.textAlign='center';
   S.heroes.forEach((h,i)=>{const b=heroBox(i);if(!b)return;ctx.fillStyle='rgba(0,0,0,.7)';ctx.fillText(h.n,b.cx+1,b.top-2);ctx.fillStyle=h.fresh?'#ffb070':i===S.sel?'#ffd27a':'#d8d0c0';ctx.fillText(h.n,b.cx,b.top-3)});
   ctx.restore();drawFx(dt)}
 const sprC=(n,x=0,y=0)=>{const s=catlas.sprites[n];if(s)ctx.drawImage(cimg,s[0],s[1],s[2],s[3],s[4]+x,s[5]+y,s[6],s[7])};
 function armyTap(x,y){let best=-1,bd=1e9;S.heroes.forEach((h,i)=>{const b=heroBox(i);if(!b)return;const cy=b.y+b.h/2,d=Math.abs(x-b.cx)+Math.abs(y-cy)*.4;if(Math.abs(x-b.cx)<b.w/2+4&&y>b.top-10&&y<b.foot+4&&d<bd){bd=d;best=i}});
-  if(best>=0){S.sel=best;const h=S.heroes[best];if(h.fresh){h.fresh=0}amode='hero';refreshArmy();save()}}
-// the panel under the camp: the hero, their weapon, then your weapons as sprites, then one weapon's details
-let amode='hero',adet=null;
+  if(best>=0)openHero(best)}
+// under the camp: a card for each hero (their face, name and weapon). A card (or the hero by the fire) opens their sheet: the hero, their
+// weapon and its stats, then your weapons as sprites to pick from, then one weapon's details. heroOpen: 'hero' while the sheet shows,
+// 'look' while their Look is open from it
+let amode='hero',adet=null,heroOpen=false;
+function openHero(i){if(!S.heroes[i])return;S.sel=i;const h=S.heroes[i];if(h.fresh){h.fresh=0;save()}amode='hero';heroOpen='hero';
+  const box=$('#lookbox');box.onclick=heroClick;refreshArmy();$('#lookbg').classList.add('on')}
+function heroCards(){const box=$('#cards');box.innerHTML='';S.heroes.forEach((h,i)=>{const it=h.eq&&itemById(h.eq),el=document.createElement('div');
+  el.className='card hcard'+(h.fresh?' fresh':'')+(!h.fresh&&!h.looked?' lookme':'');el.dataset.hero=i;
+  el.innerHTML=`<div class="pic"></div><div class="line"><b>${h.n}</b>${it?`<span class="what" style="color:${GCOL[it.g]}">${WEAP[it.w].n}</span><span class="lv">${fmtN(wPower(it))}</span>`:'<span class="what dim">No weapon</span>'}</div><div class="wic"></div>`;
+  el.querySelector('.pic').appendChild(heroFace(i));if(it)el.querySelector('.wic').appendChild(iconBox(it));box.appendChild(el)})}
+$('#cards').addEventListener('click',e=>{const c=e.target.closest('.hcard');if(c)openHero(+c.dataset.hero)});
 const wTitle=it=>`${GR[it.g].n} ${WEAP[it.w].n}`;
 function statGrid(it,vs){const a=wStats(it),b=vs?wStats(vs):null;return '<div class="stats">'+STN.map((n,i)=>{if(!a[i]&&!(b&&b[i]))return '';const d=b?a[i]-b[i]:0;return `<div><span>${n}</span> <b>${fmtN(a[i])}${d?` <i class="${d>0?'up':'dn'}">${d>0?'+':''}${fmtN(d)}</i>`:''}</b></div>`}).join('')+'</div>'}
 function iconBox(it){const d=document.createElement('div');d.className='ic';d.style.borderColor=GCOL[it.g];d.appendChild(weaponIcon(it.w));return d}
-function refreshArmy(){const on=S.army&&S.view==='army';$('#apanel').style.display=on?'':'none';if(!on)return;const P=$('#apanel'),h=S.heroes[S.sel]||S.heroes[0];if(!h)return;
+function refreshArmy(){$('#apanel').style.display='none';if(S.army&&S.view==='army')heroCards();if(heroOpen!=='hero')return;const P=$('#lookbox'),h=S.heroes[S.sel]||S.heroes[0];if(!h)return;
   const cur=h.eq&&itemById(h.eq);
   if(amode==='hero'){
-    P.innerHTML=`<div class="ahead"><div class="grow"><h3>${h.n}</h3><span class="note">${S.heroes.length>1?`Hero ${S.sel+1} of ${S.heroes.length} · ${TAP} a hero to switch`:'Your first hero'}</span></div><button class="b sm${h.looked?'':' lookme'}" data-a="look">Look</button></div>`+
+    P.innerHTML=`<div class="ahead"><div class="hpic"></div><div class="grow"><h3>${h.n}</h3><span class="note">${OUTFIT[heroKind(h)].r}</span></div><button class="b sm${h.looked?'':' lookme'}" data-a="look">Look</button><button class="b sm" data-a="close" aria-label="Close">✕</button></div>`+
       (cur?`<div class="aw" id="acur"><div class="grow"><b style="color:${GCOL[cur.g]}">${wTitle(cur)}</b> <span class="note">★${cur.stars} · Power ${fmtN(wPower(cur))}</span></div></div>${statGrid(cur)}<div class="row"><button class="b go" data-a="pick">Change weapon</button><button class="b" data-a="unequip">Unequip</button>${S.sel>0?'<button class="b" data-a="fwd">Move to front</button>':''}</div>`
           :`<p class="note">Nothing equipped yet.</p><div class="row"><button class="b go" data-a="pick" ${S.inv.length?'':'disabled'}>Equip</button></div>`);
-    if(cur)P.querySelector('#acur').prepend(iconBox(cur));
+    P.querySelector('.hpic').appendChild(heroFace(S.sel,40,50));if(cur)P.querySelector('#acur').prepend(iconBox(cur));
   }else if(amode==='pick'){
     const list=S.inv.slice().sort((a,b)=>wPower(b)-wPower(a)),shown=list.slice(0,48);
     P.innerHTML=`<div class="ahead"><div class="grow"><h3>Equip ${h.n}</h3><span class="note">${S.inv.length} weapon${S.inv.length>1?'s':''}, strongest first</span></div><button class="b sm" data-a="back">Back</button></div><div class="wgrid">`+
@@ -671,14 +690,15 @@ function refreshArmy(){const on=S.army&&S.view==='army';$('#apanel').style.displ
       `<div class="row">${mine?`<span class="note">${h.n} is holding this one.</span>`:`<button class="b go" data-a="equip">${hi>=0?`Take from ${S.heroes[hi].n} and equip`:`Equip ${h.n}`}</button>`}</div>`;
     P.querySelector('#adet').prepend(iconBox(it));
   }}
-$('#apanel').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const h=S.heroes[S.sel];
+function heroClick(e){const b=e.target.closest('button');if(!b)return;const h=S.heroes[S.sel];
+  if(b.dataset.a==='close')return closeLook();
   if(b.dataset.id){adet=+b.dataset.id;amode='det'}
-  else if(b.dataset.a==='look')return openHeroLook(S.sel);
+  else if(b.dataset.a==='look'){heroOpen='look';return openHeroLook(S.sel)}
   else if(b.dataset.a==='pick')amode='pick';else if(b.dataset.a==='back')amode='hero';
   else if(b.dataset.a==='unequip'){h.eq=null;save()}
-  else if(b.dataset.a==='fwd'){S.heroes.splice(S.sel,1);S.heroes.unshift(h);S.sel=0;toast(`${h.n} leads the line`);save()}
+  else if(b.dataset.a==='fwd'){S.heroes.splice(S.sel,1);S.heroes.unshift(h);S.sel=0;hcache.length=0;toast(`${h.n} leads the line`);save()}
   else if(b.dataset.a==='equip'){const hi=holderOf(adet);if(hi>=0)S.heroes[hi].eq=null;h.eq=adet;amode='hero';toast(`${h.n} takes up the ${wTitle(itemById(adet))}`);if(!S.explore){S.explore=1;setPlaces();setTimeout(()=>toast('Explore is open: lead your heroes deeper into the cave.'),1500)}save()}
-  refreshArmy()});
+  refreshArmy()}
 /* ---------- Explore: deeper into the cave, fights as in Blacksmith Battles ----------
    Your heroes with weapons form a line (hero 1 in front). Every unit fills an attack meter by its Haste and swings when it is full.
    Sword, Axe, Shield and Warhammer reach from the front only, the Spear from 1st or 2nd, the Bow from anywhere in the line. Axes cleave the next foe for half, Swords
@@ -865,18 +885,18 @@ function openHeroLook(i){const h=S.heroes[i];if(!h)return;if(!h.looked||h.fresh)
     opts('face',FACES,FACE_N)+opts('hair',HAIRS,HAIR_N)+sw('skin',hs.skin)+sw('hair',hs.hair)+sw('a',bs.a)+sw('b',bs.b)+`<button class="b go lookdone" data-done="1">Done</button>`;
   const pv=()=>box.querySelector('.pv').replaceChildren(heroPreview(i));pv();
   const nm=box.querySelector('.hname');nm.oninput=()=>{const v=nm.value.replace(/[<>&"'`\\]/g,'').slice(0,14);if(v!==nm.value)nm.value=v;if(v.trim()){h.n=v.trim();save()}};
-  box.onclick=e=>{if(e.target.closest('[data-done]'))return closeLook();const o=e.target.closest('.opts .b');
+  box.onclick=e=>{if(e.target.closest('[data-done]'))return heroOpen==='look'?openHero(i):closeLook();const o=e.target.closest('.opts .b');
     if(o){h[o.parentNode.dataset.o]=o.dataset.v;o.parentNode.querySelectorAll('.b').forEach(q=>q.classList.toggle('on',q===o));pv();save();return}
     const b=e.target.closest('.sw button');if(!b)return;const s=b.parentNode.dataset.s;if(b.dataset.c)h.look[s]=b.dataset.c;else delete h.look[s];
     b.parentNode.querySelectorAll('button').forEach(q=>q.classList.toggle('on',q===b));pv();save()};
   $('#lookbg').classList.add('on')}
-function closeLook(){$('#lookbg').classList.remove('on');buildCards();refreshArmy()}
+function closeLook(){heroOpen=false;$('#lookbg').classList.remove('on');buildCards();refreshArmy()}
 $('#lookbg').addEventListener('click',e=>{if(e.target.id==='lookbg')closeLook()});
 /* ---------- hero cards ---------- */
 // hero portraits and weapon icons are rendered from the KayKit models by tools/icons.js into art/icons/
 const icon3d=(name,w,h)=>{const i=new Image(w,h);i.className='ico3d';i.alt='';i.draggable=false;i.src='art/icons/'+name+'.png';return i};
 function portrait(h){const i=icon3d('h-'+h.k,44,56);lookIcon(h.k,i);return i}
-function buildCards(){const box=$('#cards');box.innerHTML='';for(const h of HEROES){if(place(h)!==(S.view||'mine'))continue;const el=document.createElement('div');el.className='card';el.dataset.k=h.k;
+function buildCards(){const box=$('#cards');box.innerHTML='';if(S.view==='army'){if(S.army)heroCards();return}for(const h of HEROES){if(place(h)!==(S.view||'mine'))continue;const el=document.createElement('div');el.className='card';el.dataset.k=h.k;
   el.innerHTML=`<div class="pic"></div><div class="line"><b>${h.n}</b><span class="lv"></span><span class="what"></span></div><div class="buy"><button class="b go" data-buy="${h.k}"></button></div>`;
   el.querySelector('.pic').appendChild(portrait(h));box.appendChild(el)}refreshCards()}
 function revealCheck(){for(const pl of ['mine','forge']){if(pl==='forge'&&!S.forge)continue;for(const h of HEROES){if(place(h)!==pl||S.seen[h.k])continue;if(h.req&&h.req()){S.seen[h.k]=1;if(pl!==S.view){(S.notice=S.notice||{})[pl]=1;setPlaces()}toast(`Someone new came to the ${pl}: the ${h.n}`);save();refreshCards()}break}}}

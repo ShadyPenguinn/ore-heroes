@@ -40,10 +40,15 @@ module.exports = (S, K, B, C) => {
   function body(F, o) {
     const tag = o.tag || 'body', G = S.grp(0.045), crouch = o.crouch || 0;
     const TR = o.trous, BO = o.boot;
-    const hip = 0.66 - crouch * 0.3;
+    const hip = o.cross ? 0.16 : 0.66 - crouch * 0.3;
     for (const s of [-1, 1]) {
       const lt = o.legTags ? o.legTags[s < 0 ? 0 : 1] : tag, fx = s * 0.065;
-      if (crouch) {
+      if (o.cross) { // sitting cross-legged on the floor: knees out to the sides, the shins crossed in front
+        const knee = [s * 0.21, 0.13, 0.15], ankle = [-s * 0.08, 0.06 + (s > 0 ? 0.03 : 0), 0.25 + (s > 0 ? 0.02 : 0)];
+        tube(F, [[fx * 0.9, hip, 0], knee], 0.044, 0.042, TR, lt, 0.006, G);
+        tube(F, [knee, ankle], 0.04, 0.034, TR, lt, 0.006);
+        ball(F, [ankle[0] - s * 0.04, ankle[1], ankle[2] + 0.01], [0.05, 0.04, 0.045], BO, lt, 0.006);
+      } else if (crouch) {
         const knee = [fx * 1.3, 0.34, 0.26], foot = [fx, 0.05, s > 0 ? 0.08 : 0.13];
         tube(F, [[fx * 0.9, hip, 0], knee], 0.042, 0.04, TR, lt, 0.006, G);
         tube(F, [knee, [foot[0], 0.16, foot[2] - 0.02]], 0.04, 0.036, TR, lt, 0.006);
@@ -54,7 +59,7 @@ module.exports = (S, K, B, C) => {
       }
     }
     ball(F, [0, hip, 0], [0.1, 0.08, 0.075], TR, tag, 0.007, G);
-    const ch = hip + 0.31, lean = crouch * 0.1;
+    const ch = hip + 0.31, lean = o.cross ? 0.05 : crouch * 0.1;
     tube(F, [[0, hip + 0.03, 0], [0, hip + 0.2, 0.01 + lean * 0.5], [0, ch, -0.005 + lean]], 0.085, 0.1, o.shirt, tag, 0.007, G);
     ball(F, [0, ch, lean], [0.115, 0.08, 0.08], o.shirt, tag, 0.007, G);
     for (const s of [-1, 1]) ball(F, [s * 0.11, ch + 0.055, lean - 0.005], [0.05, 0.04, 0.05], o.shirt, tag, 0.006, G);
