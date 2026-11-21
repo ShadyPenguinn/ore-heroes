@@ -12,8 +12,8 @@ OUT = os.path.join(HERE, '..', 'art')
 meta = json.load(open(os.path.join(FR, 'jobs.json')))
 # the mine is rendered at px 1 (full detail) and kept that way: the game draws it at half size on a 2x canvas ("k": 2).
 # The others are rendered at px 2 and kept one pixel per art pixel.
-PX = 1 if WHICH == 'mine' else 2
-K = 2 if WHICH == 'mine' else 1
+PX = 1 if WHICH in ('mine', 'forge') else 2
+K = 2 if WHICH in ('mine', 'forge') else 1
 
 def load(name):
     a = np.asarray(Image.open(os.path.join(FR, name + '.png')).convert('RGB'))
@@ -41,7 +41,7 @@ for n in meta['jobs']:
         sm = np.asarray(Image.open(sp).convert('RGB'))[::PX, ::PX, 0]
         masks[n] = (sm[y0:y1, x0:x1] * m[y0:y1, x0:x1]).astype(np.uint8)
 
-AW = 2048 if WHICH == 'mine' else 1024
+AW = 2048 if WHICH in ('mine', 'forge') else 1024
 x = y = rowh = 0
 place = {}
 for n, (img, ox, oy) in sorted(items, key=lambda it: -it[1][0].shape[0]):

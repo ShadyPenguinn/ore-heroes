@@ -7,7 +7,7 @@ const {chromium} = require('playwright'), fs = require('fs'), path = require('pa
   await p.goto('http://localhost:8765/tools/icons.html'); await p.waitForFunction(() => window.ICONS, null, {timeout: 180000});
   const out = await p.evaluate(() => window.ICONS), dir = path.join(__dirname, '../art/icons');
   // the mine heroes' portraits come from their splat sculpts now (tools/portraits.js), so those are left alone here
-  const SPLAT = new Set(['miner', 'prospector', 'carter', 'phantom', 'blaster', 'lamp', 'foreman', 'time'].map(k => 'h-' + k));
+  const SPLAT = new Set(['miner', 'prospector', 'carter', 'phantom', 'blaster', 'lamp', 'foreman', 'time', 'smith', 'swordsmith', 'axesmith', 'spearwright', 'shieldwright', 'hammersmith'].map(k => 'h-' + k));
   for (const [k, url] of Object.entries(out)) if (!SPLAT.has(k)) fs.writeFileSync(path.join(dir, k + '.png'), Buffer.from(url.split(',')[1], 'base64'));
   console.log(Object.keys(out).join(' ')); await b.close()
 })();

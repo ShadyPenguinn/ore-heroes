@@ -234,26 +234,32 @@ const HEROES=[
      and costs a third of your stars; Quench banks the score early. Stars set the grade. Forge heroes never forge on their
      own: they make it easier (the Blacksmith) or better (the smiths). There are no ingots: blanks are paid in ore. */
   {k:'smith',n:'Blacksmith',base:3000,place:'forge',noMs:true,
-    what:()=>`${maxFolds()} Folds · glow ${zoneW()}%`,
+    what:()=>`${maxFolds()} Folds`,
+    desc:()=>`Hammers every blank you heat. Blanks hold up to ${maxFolds()} Folds, and the glow is ${zoneW()}% wide.`,
     ms:lv=>smithMs(lv)},
   {k:'swordsmith',n:'Swordsmith',base:15000,place:'forge',noMs:true,w:'sword',
-    what:()=>`+${3*lv('swordsmith')}% Swords`,
+    what:()=>`+${3*lv('swordsmith')}%`,
+    desc:()=>`Every Sword you forge gets +${3*lv('swordsmith')}% Might and Haste, locked in when it's forged.`,
     ms:lv=>`Next level: +3% more`,
     req:()=>lv('smith')>=5, hint:'The Blacksmith learns Swords at level 5.'},
   {k:'axesmith',n:'Axesmith',base:1e5,place:'forge',noMs:true,w:'axe',
-    what:()=>`+${3*lv('axesmith')}% Axes`,
+    what:()=>`+${3*lv('axesmith')}%`,
+    desc:()=>`Every Axe you forge gets +${3*lv('axesmith')}% Might and Vigor, locked in when it's forged.`,
     ms:lv=>`Next level: +3% more`,
     req:()=>lv('smith')>=25, hint:'The Blacksmith learns Axes at level 25.'},
   {k:'spearwright',n:'Spearwright',base:1e6,place:'forge',noMs:true,w:'spear',
-    what:()=>`+${3*lv('spearwright')}% Spears`,
+    what:()=>`+${3*lv('spearwright')}%`,
+    desc:()=>`Every Spear you forge gets +${3*lv('spearwright')}% Haste and Might, locked in when it's forged.`,
     ms:lv=>`Next level: +3% more`,
     req:()=>lv('smith')>=50, hint:'The Blacksmith learns Spears at level 50.'},
   {k:'shieldwright',n:'Shieldwright',base:1e7,place:'forge',noMs:true,w:'shield',
-    what:()=>`+${3*lv('shieldwright')}% Shields`,
+    what:()=>`+${3*lv('shieldwright')}%`,
+    desc:()=>`Every Shield you forge gets +${3*lv('shieldwright')}% Defense and Magic Defense, locked in when it's forged.`,
     ms:lv=>`Next level: +3% more`,
     req:()=>lv('smith')>=75, hint:'The Blacksmith learns Shields at level 75.'},
   {k:'hammersmith',n:'Hammersmith',base:1e8,place:'forge',noMs:true,w:'hammer',
-    what:()=>`+${3*lv('hammersmith')}% Warhammers`,
+    what:()=>`+${3*lv('hammersmith')}%`,
+    desc:()=>`Every Warhammer you forge gets +${3*lv('hammersmith')}% Might and Defense, locked in when it's forged.`,
     ms:lv=>`Next level: +3% more`,
     req:()=>lv('smith')>=100, hint:'The Blacksmith learns Warhammers at level 100.'}
 ];
@@ -361,7 +367,7 @@ let atlas=null,img=null,fatlas=null,fimg=null;
 function spr(name,x=0,y=0,a=1,F=false){const at=F?fatlas:atlas,im=F?fimg:img,s=at.sprites[name];if(!s)return;if(a<1)ctx.globalAlpha=a;ctx.drawImage(im,s[0],s[1],s[2],s[3],s[4]+x,s[5]+y,s[6],s[7]);ctx.globalAlpha=1}
 const sprF=(n,x=0,y=0,a=1)=>spr(n,x,y,a,true);
 // a forge sprite's box on the canvas: [x, y, w, h]
-const boxF=n=>{const s=fatlas.sprites[n];return[s[4],s[5],s[2],s[3]]};
+const boxF=n=>{const s=fatlas.sprites[n];return[s[4],s[5],s[6],s[7]]};
 // a hero's clip player: an idle loop, and one-shot segments that return to idle. Clip lengths match art/src/mine.js
 const DUR={miner:{idle:1,strike:.12,recover:.38},pros:{idle:1,strike:.12,recover:.38},phantom:{idle:1,strike:.12,recover:.38},
   boss:{idle:1,call:.5},blast:{idle:1,duck:.6},lamp:{idle:1,reach:1},time:{idle:2,turn:.6},heap:{idle:1},
@@ -525,7 +531,9 @@ let slide=null;
 const drawPlace=(v,dt)=>v==='forge'&&S.forge?drawForge(dt):v==='army'&&S.army?drawArmy(dt):v==='explore'&&S.explore?drawExplore(dt):draw(dt);
 let placeOX=0,forgeDrawn=false;
 let bdOn=null;const bdEl=$('#bd');
-function drawScene(dt){ctx.clearRect(0,0,480,210);forgeDrawn=mineDrawn=false;placeOX=0;drawScene2(dt);{const on=S.view==='mine'&&!slide;if(on!==bdOn){bdOn=on;bdEl.style.opacity=on?1:0}}if(!forgeDrawn&&window.F3D)F3D.hide();if(!mineDrawn&&window.M3D)M3D.hide()}
+// the blurred backdrop around the stage: that place's empty background, stretched to fill the art box
+function bdPaint(w){const at=w==='forge'?fatlas:atlas,im=w==='forge'?fimg:img;if(!at||!im)return;const b=at.sprites.bg;bdEl.getContext('2d').drawImage(im,b[0],b[1],b[2],b[3],0,0,480,210)}
+function drawScene(dt){ctx.clearRect(0,0,480,210);forgeDrawn=mineDrawn=false;placeOX=0;drawScene2(dt);{const on=!slide&&(S.view==='mine'||S.view==='forge')?S.view:'';if(on!==bdOn){bdOn=on;if(on)bdPaint(on);bdEl.style.opacity=on?1:0}}if(!forgeDrawn&&window.F3D)F3D.hide();if(!mineDrawn&&window.M3D)M3D.hide()}
 function drawScene2(dt){if(!slide)return drawPlace(S.view,dt);slide.t=Math.min(1,slide.t+dt/.45);
   const k=slide.t<.5?2*slide.t*slide.t:1-Math.pow(-2*slide.t+2,2)/2,PL=['mine','forge','army','explore'],dir=PL.indexOf(S.view)>PL.indexOf(slide.from)?1:-1;
   ctx.save();placeOX=Math.round(-dir*k*480);ctx.translate(placeOX,0);drawPlace(slide.from,dt);ctx.restore();
@@ -709,24 +717,33 @@ const hexRgb=h=>[1,3,5].map(i=>parseInt(h.slice(i,i+2),16)).join(',');
 function ghostTint(){const c=S.look&&S.look.phantom&&S.look.phantom.a;if(!c)return{rgb:'138,255,224',spark:'#8affe0',pop:'#b8fff0'};
   const v=hx(c),m=Math.max(...v,1),b=v.map(x=>Math.round(255*x/m)),l=b.map(x=>Math.round(x+(255-x)*.55));
   return{rgb:b.join(','),spark:'rgb('+b.join(',')+')',pop:'rgb('+l.join(',')+')'}}
-const LOOK_LAYER={miner:'miner',prospector:'pros',carter:'cart',phantom:'phantom',foreman:'boss',blaster:'blast',lamp:'lamp',time:'time'};
+const LOOK_LAYER={miner:'miner',prospector:'pros',carter:'cart',phantom:'phantom',foreman:'boss',blaster:'blast',lamp:'lamp',time:'time',
+  smith:'smith',swordsmith:'sword',axesmith:'axe',spearwright:'spear',shieldwright:'shield',hammersmith:'hammer'};
+const LOOK_AT=k=>HK[k]&&place(HK[k])==='forge'?'forge':'mine'; // which atlas a hero is drawn from
 const LOOK_ROWS={miner:{a:'Shirt',b:'Trousers'},prospector:{a:'Shirt',b:'Hat and leathers'},carter:{a:'Shirt',b:'Cap and trousers'},phantom:{a:'Glow'},
-  foreman:{a:'Suit',b:'Waistcoat'},blaster:{a:'Shirt',b:'Vest'},lamp:{a:'Coat',b:'Hat and trousers'},time:{a:'Robe',b:'Magic'}};
+  foreman:{a:'Suit',b:'Waistcoat'},blaster:{a:'Shirt',b:'Vest'},lamp:{a:'Coat',b:'Hat and trousers'},time:{a:'Robe',b:'Magic'},
+  smith:{a:'Shirt',b:'Apron'},swordsmith:{a:'Coat',b:'Waistcoat'},axesmith:{a:'Shirt',b:'Cap and trousers'},spearwright:{a:'Tunic',b:'Sash'},shieldwright:{a:'Gambeson',b:'Tabard'},hammersmith:{a:'Cloak',b:'Leathers'}};
 const LOOK_SW={skin:['#f6d2b0','#eab888','#d09a6c','#b07a4c','#8a5a36','#6a4026','#4a2a18'],
   hair:['#e8a860','#f2d27a','#a06a3e','#5a3a24','#2a2a30','#d8d2c8','#b8402e','#4a6ea8'],
   a:['#4a8a6c','#5a7cb0','#a82a1c','#c09a38','#6e5aa8','#3a4058','#8a2c40','#9a8656','#d8d2c8','#2a2a30','#d06a9a','#5ae0c8'],
   b:['#65503e','#3a4058','#8a2c40','#9a8656','#4a8a6c','#a06a3e','#c09a38','#2a2a30','#d8d2c8','#6e5aa8','#d06a9a','#5ae0c8']};
 const SLOTK=['skin','hair','a','b'];
-let lookCv=null,lookCtx=null,lookOrig=null,lookWork=null,lookMask=null,lookReady=Promise.resolve();
+// each atlas with heroes in it (mine, forge) keeps its own recoloured copy: {cv, ctx, orig, work, mask, at}
+const LK={};let lookReady=Promise.resolve();
+const slotsOf=k=>{const st=LK[LOOK_AT(k)],L=LOOK_LAYER[k];return st&&L&&st.at.slots&&st.at.slots[L]||null};
 const hx=h=>[1,3,5].map(i=>parseInt(h.slice(i,i+2),16)),lum=c=>.3*c[0]+.59*c[1]+.11*c[2];
 // the swap for one slot: each of the hero's own shades -> the same shade of the picked colour (the pick is the hero's light-middle shade)
 function lookRamp(def,pick){const D=def.map(hx),ref=D[Math.round((D.length-1)*.75)],P=hx(pick),k=D.map(d=>lum(d)/Math.max(1,lum(ref)));
-  return{D,T:k.map(f=>P.map(v=>Math.min(255,v*f)))}}
+  // shades darker than the pick scale it down; lighter ones lift it toward white (scaling up would burn a light pick out to yellow)
+  return{D,T:k.map(f=>P.map(v=>f<=1?v*f:Math.min(255,v+(255-v)*Math.min(.8,(f-1)*.6))))}}
 function lookPixel(R,d,o){let bi=0,bd=1e9;for(let i=0;i<R.D.length;i++){const q=R.D[i],e=(d[o]-q[0])**2+(d[o+1]-q[1])**2+(d[o+2]-q[2])**2;if(e<bd){bd=e;bi=i}}
   // keep the pixel's shade (its brightness against the ramp step it matches) with only a little of its tint, so a weak channel in
   // the ramp (the ghost's red, say) can't blow up into stray colours
-  const q=R.D[bi],t=R.T[bi],lr=(lum([d[o],d[o+1],d[o+2]])+4)/(lum(q)+4);
-  for(let c=0;c<3;c++){const f=lr*Math.max(.85,Math.min(1.18,((d[o+c]+4)/(q[c]+4))/lr));d[o+c]=Math.max(0,Math.min(255,Math.round(t[c]*f)))}
+  const q=R.D[bi],t=R.T[bi],lp=lum([d[o],d[o+1],d[o+2]]),lq=lum(q),lr=(lp+4)/(lq+4);
+  if(lr<=1)for(let c=0;c<3;c++){const f=lr*Math.max(.85,Math.min(1.18,((d[o+c]+4)/(q[c]+4))/lr));d[o+c]=Math.max(0,Math.min(255,Math.round(t[c]*f)))}
+  // a pixel lit brighter than its shade: add that light on top of the picked shade rather than multiplying it, so a light pick on a
+  // dark-drawn hero brightens toward white instead of burning out to yellow
+  else{const add=(lp-lq)*Math.min(1.6,(lum(t)+4)/(lq+4));for(let c=0;c<3;c++)d[o+c]=Math.max(0,Math.min(255,Math.round(t[c]+add)))}
   return bd}
 // recolour pixels: src (original), dst (to write), mask, the hero's look and slots
 // colours the slot mask covers in most places: a pixel of that exact colour the mask missed (a dithered or shifted edge) still counts
@@ -739,22 +756,23 @@ function lookPaint(src,dst,mask,n0,n1,W,box,look,slots,fb){const R=SLOTK.map(s=>
     if(!src[o+3])continue;const m=mask[o],r=m?R[Math.round(m/60)-1]:null;if(r){lookPixel(r,dst,o);continue}
     // a pixel the mask missed (a dithered or blended edge) but drawn in a changed slot's colours still takes that slot's colour
     if(!m&&fb){const i=fb.get((src[o]<<16)|(src[o+1]<<8)|src[o+2]),q=i?R[i-1]:null;if(q)lookPixel(q,dst,o)}}}
-function lookInit(img,sl){const W=img.width,H=img.height;lookCv=document.createElement('canvas');lookCv.width=W;lookCv.height=H;lookCtx=lookCv.getContext('2d',{willReadFrequently:true});
-  lookCtx.drawImage(sl,0,0);lookMask=lookCtx.getImageData(0,0,W,H).data;lookCtx.clearRect(0,0,W,H);lookCtx.drawImage(img,0,0);lookWork=lookCtx.getImageData(0,0,W,H);lookOrig=new Uint8ClampedArray(lookWork.data)}
+function lookInit(which,img,sl,at){const W=img.width,H=img.height,cv=document.createElement('canvas');cv.width=W;cv.height=H;const ctx=cv.getContext('2d',{willReadFrequently:true});
+  ctx.drawImage(sl,0,0);const mask=ctx.getImageData(0,0,W,H).data;ctx.clearRect(0,0,W,H);ctx.drawImage(img,0,0);const work=ctx.getImageData(0,0,W,H);
+  LK[which]={cv,ctx,mask,work,orig:new Uint8ClampedArray(work.data),at};return cv}
 const lookFb={};
-function lookApply(k){const L=LOOK_LAYER[k];if(!lookCv||!L||!atlas.slots||!atlas.slots[L])return;const look=(S.look||{})[k],W=lookCv.width;
-  const boxes=Object.entries(atlas.sprites).filter(([n])=>n.startsWith(L+'-')).map(([n,s])=>[s[0],s[1],s[2],s[3]]);
-  const fb=lookFb[L]||(lookFb[L]=lookFallback(lookOrig,lookMask,W,boxes));
+function lookApply(k){const L=LOOK_LAYER[k],slots=slotsOf(k);if(!slots)return;const st=LK[LOOK_AT(k)],look=(S.look||{})[k],W=st.cv.width;
+  const boxes=Object.entries(st.at.sprites).filter(([n])=>n.startsWith(L+'-')).map(([n,s])=>[s[0],s[1],s[2],s[3]]);
+  const fb=lookFb[L]||(lookFb[L]=lookFallback(st.orig,st.mask,W,boxes));
   for(const box of boxes){
-    lookPaint(lookOrig,lookWork.data,lookMask,0,0,W,box,look,atlas.slots[L],fb);lookCtx.putImageData(lookWork,0,0,box[0],box[1],box[2],box[3])}}
+    lookPaint(st.orig,st.work.data,st.mask,0,0,W,box,look,slots,fb);st.ctx.putImageData(st.work,0,0,box[0],box[1],box[2],box[3])}}
 // a portrait with the hero's look: drawn into a canvas and handed back as the image's source
 const lookIconCache={};
 function lookIcon(k,el){const L=LOOK_LAYER[k],look=(S.look||{})[k];if(!L||!look||!Object.keys(look).length)return;
-  lookReady.then(()=>{if(!atlas||!atlas.slots||!atlas.slots[L])return;const key=k+JSON.stringify(look);if(lookIconCache[key]){el.src=lookIconCache[key];return}
+  lookReady.then(()=>{const slots=slotsOf(k);if(!slots)return;const key=k+JSON.stringify(look);if(lookIconCache[key]){el.src=lookIconCache[key];return}
     Promise.all([pic('art/icons/h-'+k+'.png'),pic('art/icons/h-'+k+'.slots.png')]).then(([im,sm])=>{const c=document.createElement('canvas'),W=c.width=im.width,H=c.height=im.height,x=c.getContext('2d',{willReadFrequently:true});
       x.drawImage(sm,0,0);const mask=x.getImageData(0,0,W,H).data;x.clearRect(0,0,W,H);x.drawImage(im,0,0);const d=x.getImageData(0,0,W,H),src=new Uint8ClampedArray(d.data);
-      lookPaint(src,d.data,mask,0,0,W,[0,0,W,H],look,atlas.slots[L],lookFallback(src,mask,W,[[0,0,W,H]]));x.putImageData(d,0,0);el.src=lookIconCache[key]=c.toDataURL()}).catch(()=>{})})}
-function openLook(k){const h=HEROES.find(q=>q.k===k),L=LOOK_LAYER[k],slots=atlas.slots&&atlas.slots[L];if(!slots)return;
+      lookPaint(src,d.data,mask,0,0,W,[0,0,W,H],look,slots,lookFallback(src,mask,W,[[0,0,W,H]]));x.putImageData(d,0,0);el.src=lookIconCache[key]=c.toDataURL()}).catch(()=>{})})}
+function openLook(k){const h=HEROES.find(q=>q.k===k),slots=slotsOf(k);if(!slots)return;
   const look=(S.look||(S.look={}))[k]||{},box=$('#lookbox');
   const row=(s,label)=>slots[s]?`<div class="lookrow"><div class="sw" data-s="${s}"><button class="def${look[s]?'':' on'}" data-c="" aria-label="As drawn">↺</button>${LOOK_SW[s].map(c=>`<button style="background:${c}" data-c="${c}" class="${look[s]===c?'on':''}" aria-label="${c}"></button>`).join('')}</div></div>`:'';
   box.innerHTML=`<div class="lookhead"><div class="pv"></div><div><b>${h.n}</b>${h.desc?`<p class="ldesc">${h.desc()}</p>`:''}</div></div>${row('skin','Skin')}${row('hair','Hair')}${row('a',LOOK_ROWS[k].a)}${row('b',LOOK_ROWS[k].b||'')}<button class="b go lookdone" data-done="1">Done</button>`;
@@ -777,7 +795,7 @@ function refreshCards(){let shownLocked=false;
   for(const h of HEROES){const el=document.querySelector(`.card[data-k="${h.k}"]`);if(!el)continue;const L=lv(h.k),seen=S.seen[h.k];
     if(!seen){if(shownLocked){el.style.display='none';continue}shownLocked=true;el.style.display='';el.className='card locked';el.querySelector('b').textContent='???';el.querySelector('.lv').textContent='';el.querySelector('.what').textContent=h.hint;el.querySelector('.buy').style.display='none';el.querySelector('.pic').style.visibility='hidden';continue}
     el.style.display='';el.querySelector('.pic').style.visibility='';el.querySelector('.buy').style.display='';el.querySelector('b').textContent=h.n;
-    el.className='card'+(L?'':' fresh')+(L&&LOOK_LAYER[h.k]&&atlas&&atlas.slots?' cust':'');
+    el.className='card'+(L?'':' fresh')+(L&&slotsOf(h.k)?' cust':'');
     el.querySelector('.lv').textContent=L?`Lv ${L}`:'';
     el.querySelector('.what').textContent=L?h.what():'';
     
@@ -847,12 +865,11 @@ window.addEventListener('pagehide',save);
 
 load();
 const pic=src=>new Promise((ok,bad)=>{const i=new Image();i.onload=()=>ok(i);i.onerror=bad;i.src=src});
-const mineSlots=pic('art/mine-slots.png').catch(()=>null);
+const mineSlots=pic('art/mine-slots.png').catch(()=>null),forgeSlots=pic('art/forge-slots.png').catch(()=>null);
 Promise.all([fetch('art/mine.json').then(r=>r.json()),pic('art/mine.png'),fetch('art/forge.json').then(r=>r.json()),pic('art/forge.png'),fetch('art/army.json').then(r=>r.json()),pic('art/army.png'),fetch('art/explore.json').then(r=>r.json()),pic('art/explore.png')]).then(([a,i,fa,fi,aa,ai,xa,xi])=>{
   // an atlas drawn at 1/k: [sx, sy, sw, sh, x, y] gets its place and size on the stage as [.., x/k, y/k, sw/k, sh/k]
   for(const at of [a,fa]){const k=at.k||1;for(const s of Object.values(at.sprites)){s[6]=s[2]/k;s[7]=s[3]/k;s[4]/=k;s[5]/=k}}
-  {const b=a.sprites.bg,bd=$('#bd').getContext('2d');bd.drawImage(i,b[0],b[1],b[2],b[3],0,0,480,210)}
-  atlas=a;lookReady=mineSlots.then(sl=>{if(sl&&a.slots){lookInit(i,sl);img=lookCv;for(const k in S.look||{})lookApply(k);buildCards()}});img=i;fatlas=fa;fimg=fi;aatlas=aa;aimg=ai;xatlas=xa;ximg=xi;
+  atlas=a;img=i;fatlas=fa;fimg=fi;lookReady=Promise.all([mineSlots,forgeSlots]).then(([sm,sf])=>{if(sm&&a.slots)img=lookInit('mine',i,sm,a);if(sf&&fa.slots)fimg=lookInit('forge',fi,sf,fa);for(const k in S.look||{})lookApply(k);buildCards()});aatlas=aa;aimg=ai;xatlas=xa;ximg=xi;
   A.miner=new Actor('miner',e=>{if(e==='strike')minerLanded()});A.pros=new Actor('pros',e=>{if(e==='strike')prospLanded()});
   A.phantom=new Actor('phantom',e=>{if(e==='strike'){const g=ghostTint();gain(phantomRate()*PHANTOM_EVERY,SPOT.phantom.pop,g.pop);burst(SPOT.phantom.hit,6,[g.spark,'#d88038','#f0b070'],.7)}});
   A.boss=new Actor('boss');A.blast=new Actor('blast');A.lamp=new Actor('lamp');A.time=new Actor('time');
@@ -867,7 +884,7 @@ Promise.all([fetch('art/mine.json').then(r=>r.json()),pic('art/mine.png'),fetch(
 const sc=document.getElementById('scene'),c=document.createElement('canvas'),gl=!!(c.getContext('webgl2')||c.getContext('webgl'));
 const go=(file,set)=>gl?import(file).then(m=>m.start(sc)).then(set).catch(e=>console.warn('3D off:',file,e)):null;
 // the mine is drawn from its splat art (art/mine.png); mine3d.js, the live 3D mine, is kept but no longer loaded
-go('./forge3d.js',D=>window.F3D=D);
+// the forge is drawn from its splat art too (art/forge.png); forge3d.js, the live 3D forge, is kept but no longer loaded
 </script>
 <script>
 if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js').catch(()=>{});
