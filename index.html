@@ -40,6 +40,8 @@ body{font-family:var(--body);font-size:14px;line-height:1.45;padding:0 max(16px,
 .scene{position:relative;border-radius:12px;overflow:hidden;border:1px solid var(--line);background:#0c0a09;aspect-ratio:480/250;touch-action:manipulation;user-select:none;-webkit-user-select:none;cursor:pointer}
 .scene canvas{position:absolute;inset:0;width:100%;height:100%;image-rendering:pixelated;image-rendering:crisp-edges}
 .scene #cv{inset:auto;left:0;top:0}
+/* behind the stage: the mine's cave, blurred and dimmed, filling the rest of a taller box */
+.scene #bd{object-fit:cover;filter:blur(7px) brightness(.5);transform:scale(1.15);transition:opacity .3s}
 /* phones: the art runs edge to edge */
 @media (max-width:600px){.scene{margin:0 calc(-1 * max(16px,env(safe-area-inset-left,0px)));border-radius:0;border-left:0;border-right:0}}
 /* full view: the art fills the screen; tapping still works, the corner button comes back */
@@ -128,7 +130,7 @@ img.ico3d{image-rendering:auto!important;object-fit:contain}
       <div class="chip" id="wchip" style="display:none"><small>Forged</small><b id="wpns">0</b></div>
     </div>
     <div class="places" id="places"><button class="b sm on" data-v="mine">Mine</button><button class="b sm" data-v="forge">Forge</button><button class="b sm" data-v="army" style="display:none">Army</button><button class="b sm" data-v="explore" style="display:none">Explore</button></div>
-    <div class="scene" id="scene"><canvas id="cv" width="480" height="210"></canvas><div class="taphint" id="taphint">Tap the rock</div><div class="fresult" id="fresult"></div><div class="fresult" id="xresult"></div><div class="fvore"><small>Ore</small><span id="fvore">0</span></div><div class="fvturn">Turn sideways for the biggest view</div><button class="fvbtn" id="fvbtn" aria-label="Full view"></button></div>
+    <div class="scene" id="scene"><canvas id="bd" width="480" height="210" aria-hidden="true"></canvas><canvas id="cv" width="960" height="420"></canvas><div class="taphint" id="taphint">Tap the rock</div><div class="fresult" id="fresult"></div><div class="fresult" id="xresult"></div><div class="fvore"><small>Ore</small><span id="fvore">0</span></div><div class="fvturn">Turn sideways for the biggest view</div><button class="fvbtn" id="fvbtn" aria-label="Full view"></button></div>
     <div class="ftrack" id="ftrack" style="display:none"><div class="ftop"><div class="fpips" id="fpipbox"><div class="fpipsin" id="fpips"></div></div><button class="b go fact" id="fact">Heat</button><span class="fstars" id="fstars"></span></div><div class="track idle" id="track"><div class="zone" id="zone"><i></i></div><div class="marker" id="marker"></div><div class="sparks" id="sparks"></div><div class="tlabel" id="tlabel"></div></div></div>
   </div>
   <section class="panel apanel" id="apanel" style="display:none"></section>
@@ -308,7 +310,8 @@ function migrate(){if((S.v||1)<2){for(const k of ['smith','smelter','axesmith','
   if(S.v<4){S.inv=[];S.nid=1;for(const [w,b] of Object.entries(S.best||{}))S.inv.push({id:S.nid++,w,stars:b.stars,g:b.g,spec:b.spec||0});S.heroes=[];S.sel=0;S.explore=0;S.army=0;if(S.inv.length){S.army=1;recruit()}S.v=4}}
 
 /* ---------- the scene: art/mine.png + art/mine.json, rendered from art/src/mine.js (see tools/) ---------- */
-const cv=$('#cv'),ctx=cv.getContext('2d');ctx.imageSmoothingEnabled=false;
+// the canvas is 960x420 drawn as a 480x210 stage (2x), so the mine's full-detail art ("k": 2 in mine.json) lands pixel for pixel
+const cv=$('#cv'),ctx=cv.getContext('2d');ctx.setTransform(2,0,0,2,0,0);ctx.imageSmoothingEnabled=false;
 // where the ore numbers rise from (above each hero's ore, clear of the hero), and where an empty spot's sign stands
 const SPOT={
   miner:{pop:[294,94],hit:[266,124]},
@@ -322,7 +325,7 @@ const SPOT={
 };
 const LANTERNS=[{x:97,y:48},{x:193,y:50},{x:309,y:46},{x:357,y:62}];
 let atlas=null,img=null,fatlas=null,fimg=null;
-function spr(name,x=0,y=0,a=1,F=false){const at=F?fatlas:atlas,im=F?fimg:img,s=at.sprites[name];if(!s)return;if(a<1)ctx.globalAlpha=a;ctx.drawImage(im,s[0],s[1],s[2],s[3],s[4]+x,s[5]+y,s[2],s[3]);ctx.globalAlpha=1}
+function spr(name,x=0,y=0,a=1,F=false){const at=F?fatlas:atlas,im=F?fimg:img,s=at.sprites[name];if(!s)return;if(a<1)ctx.globalAlpha=a;ctx.drawImage(im,s[0],s[1],s[2],s[3],s[4]+x,s[5]+y,s[6],s[7]);ctx.globalAlpha=1}
 const sprF=(n,x=0,y=0,a=1)=>spr(n,x,y,a,true);
 // a forge sprite's box on the canvas: [x, y, w, h]
 const boxF=n=>{const s=fatlas.sprites[n];return[s[4],s[5],s[2],s[3]]};
@@ -435,7 +438,7 @@ function cartFrame(p){const n=atlas.cart.z.length-1;let dir,fi;
   if(p<.42){dir='in';fi=n*(1-p/.42)}else if(p<.58)return null;else{dir='out';fi=n*((p-.58)/.42)}
   const i=Math.min(n-1,Math.floor(fi)),f=fi-i,A0=atlas.sprites[atlas.cart[dir][i]],A1=atlas.sprites[atlas.cart[dir][i+1]];
   // slide between the rendered spots (by their foot point) so the cart rolls smoothly
-  const ax=(s)=>s[4]+s[2]/2,ay=(s)=>s[5]+s[3],x=ax(A0)+(ax(A1)-ax(A0))*f,y=ay(A0)+(ay(A1)-ay(A0))*f,pick=f<.5?A0:A1,name=f<.5?atlas.cart[dir][i]:atlas.cart[dir][i+1];
+  const ax=(s)=>s[4]+s[6]/2,ay=(s)=>s[5]+s[7],x=ax(A0)+(ax(A1)-ax(A0))*f,y=ay(A0)+(ay(A1)-ay(A0))*f,pick=f<.5?A0:A1,name=f<.5?atlas.cart[dir][i]:atlas.cart[dir][i+1];
   return{name,x:x-ax(pick),y:y-ay(pick),a:Math.min(1,fi/1.5)}}
 function draw(dt){
   if(window.M3D)return drawMine3D(dt);
@@ -488,7 +491,8 @@ function drawFx(dt){
 let slide=null;
 const drawPlace=(v,dt)=>v==='forge'&&S.forge?drawForge(dt):v==='army'&&S.army?drawArmy(dt):v==='explore'&&S.explore?drawExplore(dt):draw(dt);
 let placeOX=0,forgeDrawn=false;
-function drawScene(dt){ctx.clearRect(0,0,480,210);forgeDrawn=mineDrawn=false;placeOX=0;drawScene2(dt);if(!forgeDrawn&&window.F3D)F3D.hide();if(!mineDrawn&&window.M3D)M3D.hide()}
+let bdOn=null;const bdEl=$('#bd');
+function drawScene(dt){ctx.clearRect(0,0,480,210);forgeDrawn=mineDrawn=false;placeOX=0;drawScene2(dt);{const on=S.view==='mine'&&!slide;if(on!==bdOn){bdOn=on;bdEl.style.opacity=on?1:0}}if(!forgeDrawn&&window.F3D)F3D.hide();if(!mineDrawn&&window.M3D)M3D.hide()}
 function drawScene2(dt){if(!slide)return drawPlace(S.view,dt);slide.t=Math.min(1,slide.t+dt/.45);
   const k=slide.t<.5?2*slide.t*slide.t:1-Math.pow(-2*slide.t+2,2)/2,PL=['mine','forge','army','explore'],dir=PL.indexOf(S.view)>PL.indexOf(slide.from)?1:-1;
   ctx.save();placeOX=Math.round(-dir*k*480);ctx.translate(placeOX,0);drawPlace(slide.from,dt);ctx.restore();
@@ -746,7 +750,11 @@ window.addEventListener('pagehide',save);
 
 load();
 const pic=src=>new Promise((ok,bad)=>{const i=new Image();i.onload=()=>ok(i);i.onerror=bad;i.src=src});
-Promise.all([fetch('art/mine.json').then(r=>r.json()),pic('art/mine.png'),fetch('art/forge.json').then(r=>r.json()),pic('art/forge.png'),fetch('art/army.json').then(r=>r.json()),pic('art/army.png'),fetch('art/explore.json').then(r=>r.json()),pic('art/explore.png')]).then(([a,i,fa,fi,aa,ai,xa,xi])=>{atlas=a;img=i;fatlas=fa;fimg=fi;aatlas=aa;aimg=ai;xatlas=xa;ximg=xi;
+Promise.all([fetch('art/mine.json').then(r=>r.json()),pic('art/mine.png'),fetch('art/forge.json').then(r=>r.json()),pic('art/forge.png'),fetch('art/army.json').then(r=>r.json()),pic('art/army.png'),fetch('art/explore.json').then(r=>r.json()),pic('art/explore.png')]).then(([a,i,fa,fi,aa,ai,xa,xi])=>{
+  // an atlas drawn at 1/k: [sx, sy, sw, sh, x, y] gets its place and size on the stage as [.., x/k, y/k, sw/k, sh/k]
+  for(const at of [a,fa]){const k=at.k||1;for(const s of Object.values(at.sprites)){s[6]=s[2]/k;s[7]=s[3]/k;s[4]/=k;s[5]/=k}}
+  {const b=a.sprites.bg,bd=$('#bd').getContext('2d');bd.drawImage(i,b[0],b[1],b[2],b[3],0,0,480,210)}
+  atlas=a;img=i;fatlas=fa;fimg=fi;aatlas=aa;aimg=ai;xatlas=xa;ximg=xi;
   A.miner=new Actor('miner',e=>{if(e==='strike')minerLanded()});A.pros=new Actor('pros',e=>{if(e==='strike')prospLanded()});
   A.phantom=new Actor('phantom',e=>{if(e==='strike'){gain(phantomRate()*PHANTOM_EVERY,SPOT.phantom.pop,'#b8fff0');burst(SPOT.phantom.hit,6,['#8affe0','#d88038','#f0b070'],.7)}});
   A.boss=new Actor('boss');A.blast=new Actor('blast');A.lamp=new Actor('lamp');A.time=new Actor('time');
@@ -760,7 +768,7 @@ Promise.all([fetch('art/mine.json').then(r=>r.json()),pic('art/mine.png'),fetch(
 // the mine and the forge in live 3D; without WebGL, or if the models don't load, that place keeps its 2D art
 const sc=document.getElementById('scene'),c=document.createElement('canvas'),gl=!!(c.getContext('webgl2')||c.getContext('webgl'));
 const go=(file,set)=>gl?import(file).then(m=>m.start(sc)).then(set).catch(e=>console.warn('3D off:',file,e)):null;
-go('./mine3d.js',D=>{for(const k in D.anchors)Object.assign(SPOT[k]||(SPOT[k]={}),D.anchors[k]);window.M3D=D});
+// the mine is drawn from its splat art (art/mine.png); mine3d.js, the live 3D mine, is kept but no longer loaded
 go('./forge3d.js',D=>window.F3D=D);
 </script>
 <script>

@@ -9,7 +9,8 @@ const ROOT = path.join(__dirname, '..');
 const CLI = process.env.INK_STUDIO || path.join(ROOT, '..', 'blacksmith-battles', 'forge-splat-test', 'addons', 'splats', 'tools', 'ink-studio', 'cli', 'ink-studio.js');
 const WHICH = process.argv[2] || 'mine';
 const OUT = path.join(__dirname, 'frames', WHICH);
-const VIEW = ['--clean', '--px', '2', '--tone', 'off', '--zoom', '2.6', '--target', '0.7,0.95,0.3', '--w', '960', '--h', '420'];
+// the mine is drawn in the detailed splat look at full size (px 1; the game draws it at half scale); the rest at px 2
+const VIEW = ['--clean', '--px', WHICH === 'mine' ? '1' : '2', '--tone', 'off', '--zoom', '2.6', '--target', '0.7,0.95,0.3', '--w', '960', '--h', '420'];
 const steps = (a, b, n) => [...Array(n)].map((_, i) => +(a + ((b - a) * i) / n).toFixed(4));
 const SWING = { idle: steps(0, 1, 12), strike: [1.0, 1.04, 1.075, 1.1, 1.12], recover: [1.15, 1.2, 1.26, 1.32, 1.38, 1.44] };
 const jobs = [{ name: 'bg', env: { OH_LAYER: 'none' }, t: 0 }];
@@ -61,18 +62,28 @@ if (WHICH === 'mine') {
 }
 fs.mkdirSync(OUT, { recursive: true });
 fs.writeFileSync(path.join(OUT, 'jobs.json'), JSON.stringify({ ...layout, jobs: jobs.map(j => j.name) }));
+// frames that share a layer's settings are drawn by one process (tools/multi.js), so the scene is built once for all of them
+const groups = [];
+for (const j of jobs) {
+  const key = JSON.stringify(j.env);
+  let g = groups.find(q => q.key === key);
+  if (!g) groups.push((g = { key, env: j.env, names: [], ts: [] }));
+  g.names.push(j.name); g.ts.push(j.t);
+}
+groups.sort((a, b) => b.names.length - a.names.length);
 let next = 0, running = 0, done = 0, failed = 0;
 const N = Math.max(2, require('os').cpus().length);
 const SCENE = path.join(ROOT, 'art', 'src', WHICH + '.js');
 (function run() {
-  while (running < N && next < jobs.length) {
-    const j = jobs[next++];
+  while (running < N && next < groups.length) {
+    const g = groups[next++];
     running++;
-    const p = spawn('node', [CLI, 'render', SCENE, '--t', String(j.t), ...VIEW, '--out', path.join(OUT, j.name + '.png')], { env: { ...process.env, ...j.env }, stdio: 'ignore' });
+    const p = spawn('node', [path.join(__dirname, 'multi.js'), SCENE, OUT, g.names.join(','), '--t', g.ts.join(','), ...VIEW], { env: { ...process.env, ...g.env, INK_STUDIO: CLI }, stdio: 'ignore' });
     p.on('exit', code => {
       running--; done++;
-      if (code) { failed++; console.error('failed', j.name); }
-      if (done === jobs.length) console.log(`${WHICH}: ${done} frames${failed ? `, ${failed} failed` : ''}`);
+      if (code) { failed++; console.error('failed', g.names[0], '...'); }
+      else console.log(`${done}/${groups.length}`, g.names[0], g.names.length);
+      if (done === groups.length) console.log(`${WHICH}: ${jobs.length} frames in ${groups.length} builds${failed ? `, ${failed} failed` : ''}`);
       run();
     });
   }
