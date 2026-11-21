@@ -374,17 +374,24 @@ module.exports = ({ makeBuilder, makeSculpt, KIT: K }) => {
     }
 
     // ---- the four station smiths, each with his own anvil, bench and look ----
+    // a plaited braid from behind one ear (s = -1 | 1) over the shoulder and down the chest, tied off with a band
+    const braid = (F, hd, s, ramp, band) => { const p = [hd.at(s * 0.1, -0.02, -0.03), hd.at(s * 0.12, -0.14, 0.0), hd.at(s * 0.11, -0.27, 0.06), hd.at(s * 0.09, -0.4, 0.09)];
+      for (let i = 0; i < 7; i++) { const t = i / 6, q = p[Math.min(2, Math.floor(t * 3))], r = p[Math.min(3, Math.floor(t * 3) + 1)], k = t * 3 - Math.floor(t * 3);
+        HB.ball(F, HB.lerp(q, r, Math.min(1, k)).map((v, j) => v + (j === 0 ? 0.008 * (i % 2 ? 1 : -1) : 0)), [0.028 - 0.002 * i, 0.03, 0.028 - 0.002 * i], Mt.fur(ramp, { len: 0.012 }), 'body', 0.004); }
+      HB.lathe(F, [p[3][0], p[3][1] - 0.035, p[3][2]], 0.015, 0.02, band, 'body', 0.003); };
     const LOOKS = {
-      // a burly-bearded woodsman of a smith: ginger beard, green shirt, tweed cap and trousers, a hatchet in his belt
-      axe: { skin: C.skin, head: { beard: 'full', nose: 'round' }, shirt: C.shirt, trous: C.tweed, hat: (F, hd) => HB.hats.cap(F, hd.top, 'body'),
+      // a freckled woodswoman of a smith: two long ginger braids, green shirt, tweed cap and trousers, a hatchet in her belt
+      axe: { skin: C.skin, head: { fem: true, beard: 'none', tash: 'none', nose: 'round', hair: 'long', hairRamp: C.beard, brow: C.beard.slice(1, 4) }, shirt: C.shirt, trous: C.tweed,
+        hat: (F, hd) => { HB.hats.cap(F, hd.top, 'body'); for (const s of [-1, 1]) braid(F, hd, s, C.beard, flat([78, 79])); },
         extra: (F, bd) => { HB.tube(F, [[-0.1, bd.hip + 0.05, 0.05], [-0.12, bd.hip - 0.2, 0.08]], 0.008, 0.008, WOODM, 'body', 0.003); HB.box(F, [-0.13, bd.hip + 0.04, 0.09], [0.008, 0.025, 0.035], IRONM, 'body', 0.003); } },
-      // a young spear-maker: black hair in a topknot, a goatee, a mustard tunic with a red sash and headband
-      spear: { skin: C.brown, head: { beard: 'goatee', beardRamp: C.hairBlack, brow: C.hairBlack, nose: 'hook', hair: 'tuft', hairRamp: C.hairBlack }, shirt: C.mustard, trous: C.black,
-        hat: (F, hd) => { HB.lathe(F, [hd.top[0], hd.top[1] - 0.06, hd.top[2]], 0.03, 0.125, Mt.cloth(C.red, 0.2), 'body', 0.004); HB.ball(F, [hd.top[0], hd.top[1] + 0.02, hd.top[2] - 0.04], [0.04, 0.045, 0.04], Mt.fur(C.hairBlack), 'body', 0.004); },
+      // a young spear-maker: black hair in a high topknot with a long tail, a mustard tunic with a red sash and headband
+      spear: { skin: C.brown, head: { fem: true, beard: 'none', tash: 'none', beardRamp: C.hairBlack, brow: C.hairBlack, nose: 'round', hair: 'long', hairRamp: C.hairBlack }, shirt: C.mustard, trous: C.black,
+        hat: (F, hd) => { HB.lathe(F, [hd.top[0], hd.top[1] - 0.06, hd.top[2]], 0.03, 0.125, Mt.cloth(C.red, 0.2), 'body', 0.004); HB.ball(F, [hd.top[0], hd.top[1] + 0.02, hd.top[2] - 0.04], [0.045, 0.05, 0.045], Mt.fur(C.hairBlack), 'body', 0.004);
+          HB.tube(F, [[hd.top[0], hd.top[1] + 0.04, hd.top[2] - 0.07], [hd.top[0], hd.top[1] - 0.08, hd.top[2] - 0.16], [hd.top[0], hd.top[1] - 0.3, hd.top[2] - 0.15]], 0.035, 0.012, Mt.fur(C.hairBlack, { len: 0.02 }), 'body', 0.004); },
         extra: (F, bd) => { HB.lathe(F, [0, bd.hip + 0.02, 0], 0.06, 0.104, Mt.cloth(C.red, 0.2), 'body', 0.004); HB.tube(F, [[0.08, bd.hip, 0.06], [0.1, bd.hip - 0.18, 0.07]], 0.02, 0.008, Mt.cloth(C.red, 0.2), 'body', 0.004); } },
-      // a shield-maker with a waxed handlebar moustache, an iron half-helm, a padded black gambeson and a burgundy tabard
-      shield: { skin: C.warm, head: { beard: 'none', tash: 'handlebar', beardRamp: C.dark, brow: C.dark, nose: 'long' }, shirt: C.black, trous: C.black,
-        hat: (F, hd) => { const [x, y, z] = hd.top; HB.lathe(F, [x, y - 0.06, z], 0.1, t => 0.13 * Math.sqrt(Math.max(0, 1 - t * t)), IRONM, 'body', 0.005); HB.lathe(F, [x, y - 0.065, z], 0.015, 0.135, flat([C.iron[1]]), 'body', 0.004); HB.box(F, [x, y - 0.1, z + 0.125], [0.012, 0.05, 0.01], IRONM, 'body', 0.003); },
+      // a shield-maiden of a smith: a thick dark braid from under an iron half-helm, a padded black gambeson and a burgundy tabard
+      shield: { skin: C.warm, head: { fem: true, beard: 'none', tash: 'none', beardRamp: C.dark, brow: C.dark, nose: 'long', hair: 'long', hairRamp: C.dark }, shirt: C.black, trous: C.black,
+        hat: (F, hd) => { const [x, y, z] = hd.top; HB.lathe(F, [x, y - 0.06, z], 0.1, t => 0.13 * Math.sqrt(Math.max(0, 1 - t * t)), IRONM, 'body', 0.005); HB.lathe(F, [x, y - 0.065, z], 0.015, 0.135, flat([C.iron[1]]), 'body', 0.004); HB.box(F, [x, y - 0.1, z + 0.125], [0.012, 0.05, 0.01], IRONM, 'body', 0.003); for (const s of [-1, 1]) braid(F, hd, s, C.dark, IRONM); },
         extra: (F, bd) => { HB.box(F, [0, bd.ch - 0.12, 0.09], [0.075, 0.24, 0.008], Mt.cloth(C.waist, 0.15), 'body', 0.004, null, 0.01); HB.box(F, [0, bd.ch - 0.12, -0.085], [0.075, 0.24, 0.008], Mt.cloth(C.waist, 0.15), 'body', 0.004, null, 0.01); for (let i = 0; i < 4; i++) HB.lathe(F, [0, bd.hip + 0.05 + i * 0.06, 0], 0.006, 0.1, flat([C.black[0]]), 'body', 0.002); } },
       // an old giant of a hammer-smith in a hooded purple cloak, grey beard to his belt, leather bracers and a huge warhammer
       hammer: { skin: C.deep, head: { beard: 'long', beardRamp: C.grey, brow: C.grey.slice(1), eyes: 'squint', nose: 'round' }, shirt: C.robe, trous: C.black, big: true,
