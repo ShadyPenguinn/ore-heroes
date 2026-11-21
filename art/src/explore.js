@@ -90,7 +90,8 @@ module.exports = ({ makeBuilder, makeSculpt, KIT: K }) => {
       axe:    { coat: { r: [22, 23, 24] }, hat: 'band', wide: 0.14 },
       spear:  { coat: { r: [45, 46, 47] }, hat: 'cap' },
       shield: { coat: { r: [48, 49, 50] }, hat: 'helm' },
-      hammer: { coat: { r: [55, 56, 57] }, hat: 'hood', wide: 0.15 }
+      hammer: { coat: { r: [55, 56, 57] }, hat: 'hood', wide: 0.15 },
+      bow:    { coat: { r: [7, 8, 9, 10] }, hat: 'hood', hood: { r: [22, 23, 24] }, wide: 0.11 }
     };
     const FOE = { coat: { r: [2, 3, 4, 5] }, hood: { r: [39, 61] }, skin: { r: [22, 23, 24] } };
     const WARDEN = { coat: { r: [18, 19, 20] }, hood: { r: [18, 19] }, skin: { r: [22, 23, 24] }, wide: 0.16 };
@@ -109,11 +110,11 @@ module.exports = ({ makeBuilder, makeSculpt, KIT: K }) => {
       S.box(P(0, 0.64, 0), [wide + 0.01, 0.03, wide + 0.01], { r: [7, 8] }, { tag, res: 0.01 });
       if (o.cape) S.box(P(0, 0.78, -0.13), [0.02, 0.28, 0.12], o.cape, { tag, res: 0.01 });
       S.ball(P(0, 1.18, 0), 0.1, o.skin || SKIN, { tag, res: 0.012 });
-      if (o.hood) { S.lathe(P(0, 1.1, -0.03), 0.3, t => 0.135 * (1 - t * 0.8), o.hood, { tag, res: 0.01 }); S.ball(P(0.04, 1.19, 0.09), 0.018, { r: [62, 63], em: true }, { tag, res: 0.006 }); }
+      if (o.hood && side !== 'u') { S.lathe(P(0, 1.1, -0.03), 0.3, t => 0.135 * (1 - t * 0.8), o.hood, { tag, res: 0.01 }); S.ball(P(0.04, 1.19, 0.09), 0.018, { r: [62, 63], em: true }, { tag, res: 0.006 }); }
       if (o.hat === 'helm') { S.ball(P(0, 1.25, -0.025), [0.105, 0.07, 0.112], { r: [30, 31, 32] }, { tag, res: 0.01 }); S.lathe(P(0, 1.235, -0.01), 0.015, 0.13, { r: [30, 31, 32] }, { tag, res: 0.008 }); }
       if (o.hat === 'band') S.lathe(P(0, 1.2, 0), 0.04, 0.105, { r: [39, 40] }, { tag, res: 0.008 });
       if (o.hat === 'cap') S.ball(P(0, 1.26, -0.02), [0.11, 0.05, 0.11], { r: [45, 46] }, { tag, res: 0.01 });
-      if (o.hat === 'hood') S.lathe(P(0, 1.12, -0.05), 0.28, t => 0.13 * (1 - t * 0.85), o.coat, { tag, res: 0.01 });
+      if (o.hat === 'hood') S.lathe(P(0, 1.12, -0.05), 0.28, t => 0.13 * (1 - t * 0.85), side === 'u' && o.hood ? o.hood : o.coat, { tag, res: 0.01 });
       S.tube([P(-0.15, 1.0, 0), P(-0.17, 0.7, 0.05)], 0.035, 0.035, o.coat, { tag, res: 0.012 }); // far arm
       if (w === 'shield') { S.lathe(P(-0.19, 0.78, 0.16), 0.04, 0.2, STEEL, { tag, res: 0.008, ax: [[0, 0, 1], [1, 0, 0], [0, 1, 0]].map(v => [dir * v[0], v[1], v[2]]) }); }
       // the weapon arm (near the camera): shoulder to hand, the weapon pointing up and forward
@@ -125,12 +126,20 @@ module.exports = ({ makeBuilder, makeSculpt, KIT: K }) => {
       if (w === 'axe') { S.tube([up(-0.02, -0.1), up(0.06, 0.5)], 0.02, 0.02, WOOD, { tag: 'arm', res: 0.008 }); S.box(up(0.12, 0.42), [0.07, 0.09, 0.015], BL, { tag: 'arm', res: 0.008 }); }
       if (w === 'spear') { S.tube([up(-0.3, -0.12), up(0.5, 0.22)], 0.016, 0.016, WOOD, { tag: 'arm', res: 0.008 }); S.tube([up(0.5, 0.22), up(0.68, 0.3)], 0.035, 0.004, BL, { tag: 'arm', res: 0.008 }); }
       if (w === 'shield') { S.tube([up(0, 0), up(0.1, 0.35)], 0.018, 0.01, BL, { tag: 'arm', res: 0.008 }); }
+      if (w === 'bow') { // held out toward the foe, string toward the archer; a quiver on the back
+        const bow = [up(0.08, -0.32), up(0.15, -0.16), up(0.17, 0), up(0.15, 0.16), up(0.08, 0.32)];
+        S.tube(bow.slice(0, 3), 0.012, 0.018, WOOD, { tag: 'arm', res: 0.006 }); S.tube(bow.slice(2), 0.018, 0.012, WOOD, { tag: 'arm', res: 0.006 });
+        S.tube([bow[0], bow[4]], 0.004, 0.004, { r: [50, 51] }, { tag: 'arm', res: 0.004 });
+        S.tube([P(-0.1, 0.75, -0.12), P(-0.04, 1.12, -0.16)], 0.045, 0.05, { r: [7, 8, 9] }, { tag, res: 0.01 });
+        for (let i = 0; i < 3; i++) S.box(P(-0.03 + i * 0.02, 1.17, -0.17), [0.006, 0.04, 0.015], { r: [39, 40] }, { tag, res: 0.006 }); }
       if (w === 'hammer') { S.tube([up(-0.02, -0.1), up(0.06, 0.5)], 0.022, 0.022, WOOD, { tag: 'arm', res: 0.008 }); S.box(up(0.07, 0.5), [0.12, 0.07, 0.07], BL, { tag: 'arm', res: 0.008 }); }
       parts.body = { pivot: P(0, 0.2, 0), slices: 4 };
       parts.arm = { pivot: SH, parent: 'body', slices: 2 };
       // clip: idle 0-1 (breathing, weapon ready), hit 1-1.4 (raise, strike forward, recover), fall 2-2.6 (topples backward and stays down)
       pose = (t, dt, pup) => {
         if (t < 1) { const b = Math.sin(t * Math.PI * 2); pup.pose.body = { rot: [0, 0, dir * b * 1] }; pup.pose.arm = { rot: [0, 0, dir * 10 * b] }; }
+        else if (t < 2 && w === 'bow') { const k = Math.min(1, (t - 1) / 0.4), d = k < 0.6 ? ease(k / 0.6) : 1 - ease((k - 0.6) / 0.4); // draw, loose, settle
+          pup.pose.arm = { rot: [0, 0, dir * 14 * d] }; pup.pose.body = { rot: [0, 0, -dir * 5 * d] }; }
         else if (t < 2) { const k = Math.min(1, (t - 1) / 0.4), a = k < 0.35 ? ease(k / 0.35) * 50 : k < 0.55 ? 50 - ease((k - 0.35) / 0.2) * 130 : -80 + ease((k - 0.55) / 0.45) * 80;
           pup.pose.arm = { rot: [0, 0, dir * a] }; pup.pose.body = { rot: [0, 0, -dir * (k > 0.35 && k < 0.8 ? 8 : 0)] }; }
         else if (t >= 3) { const c = Math.sin((t - 3) * Math.PI * 4), u = Math.abs(Math.cos((t - 3) * Math.PI * 4)); // walk: two strides a second

@@ -43,7 +43,7 @@ module.exports = ({ makeBuilder, makeSculpt, KIT: K }) => {
     0x7a1810, 0xc8321e, 0xff7a20, // 75-77 hot metal
     0x4a2a18, 0x2a1810, // 78-79 dark leather
     ...HEROES.COLOURS, // 80 on: the heroes' own colours (art/src/heroes.js)
-    ...WM.COLOURS // then the weapons' (art/src/weapon-models.js), from WBASE
+    ...WM.COLOURS.slice(0, 45) // then the weapons' (art/src/weapon-models.js), from WBASE: the first 45, as when the forge was drawn (the bow is drawn lite)
   ];
   const WBASE = 80 + HEROES.COLOURS.length;
   function build(seed) {
@@ -96,7 +96,7 @@ module.exports = ({ makeBuilder, makeSculpt, KIT: K }) => {
     const COLS = { sword: -0.76, axe: -0.38, spear: 0, shield: 0.38, hammer: 0.76 };
     // the five stations: where each smith stands and which way he faces (+x or -x)
     const ST = { sword: { x: -2.35, z: -2.0, dir: 1 }, axe: { x: 3.55, z: -0.9, dir: -1 }, spear: { x: -3.65, z: -0.25, dir: 1 },
-      shield: { x: 3.35, z: 1.05, dir: -1 }, hammer: { x: -2.3, z: 1.05, dir: 1 } };
+      shield: { x: 3.35, z: 1.05, dir: -1 }, hammer: { x: -2.3, z: 1.05, dir: 1 }, bow: { x: -0.95, z: 1.75, dir: 1 } };
     const LANTERNS = [[-3.3, -1.0], [3.3, -0.6]];
 
     // ---- lights (all before the first bake) ----
@@ -236,7 +236,8 @@ module.exports = ({ makeBuilder, makeSculpt, KIT: K }) => {
     const SLOTS = {
       smith: { skin: C.deep, hair: C.hairBlack, a: C.red, b: C.leather }, sword: { skin: C.tan, hair: C.grey, a: C.denim, b: C.waist },
       axe: { skin: C.skin, hair: C.beard, a: C.shirt, b: C.tweed }, spear: { skin: C.brown, hair: C.hairBlack, a: C.mustard, b: C.red },
-      shield: { skin: C.warm, hair: C.dark, a: C.black, b: C.waist }, hammer: { skin: C.deep, hair: C.grey, a: C.robe, b: C.leather }
+      shield: { skin: C.warm, hair: C.dark, a: C.black, b: C.waist }, hammer: { skin: C.deep, hair: C.grey, a: C.robe, b: C.leather },
+      bow: { skin: C.tan, hair: C.hairBlack, a: C.shirt, b: C.leather }
     };
     const heroFirst = B.count();
     const BRASSM = Mt.metal(C.brass), IRONM = Mt.metal(C.iron), WOODM = Mt.wood(C.wood);
@@ -270,6 +271,34 @@ module.exports = ({ makeBuilder, makeSculpt, KIT: K }) => {
         else { const k = Math.min(1, (t - 1.12) / 0.38); lift = ease(k); squash = Math.max(0, 1 - k * 3); }
         pup.pose[arm] = { rot: [0, 0, dir * lift * 115] };
         pup.pose[body] = { rot: [0, 0, dir * (Math.max(0, lift) * 5 - squash * 4)], scale: [1 + 0.04 * squash, 1 - 0.05 * squash + 0.012 * breathe, 1 + 0.04 * squash] };
+      };
+    }
+    // the station smiths' own work: an idle loop 0-2 (each their own rhythm at the anvil), the strike and recover of swingPose at
+    // 2-2.5 (when a weapon of theirs comes to be finished), and a little moment of their own at 3-5 (the game plays it now and then):
+    //   axe     light quick taps, turning the head between them; then she straightens and wipes her brow
+    //   spear   two measured blows, then a look; then she turns to the spear beside her, tips it to sight along it, and nods
+    //   shield  tap-tap riveting with a pause; then she raises her shield and knocks on it
+    //   hammer  one huge slow blow from high overhead; then he leans back and stretches, the hammer up high
+    function workPose(k, dir) {
+      const swing = swingPose(dir), tap = (p, a) => a * (p < 0.72 ? ease(p / 0.72) : 1 - ((p - 0.72) / 0.28) ** 2);
+      const hold = (k, a, b) => (k < a ? ease(k / a) : k < b ? 1 : 1 - ease(Math.min(1, (k - b) / (2 - b))));
+      return (t, dt, pup) => {
+        if (t >= 2 && t < 3) { swing(t - 1, dt, pup); pup.pose.off = { rot: [0, 0, 0] }; return; }
+        let A = 0, O = 0, Oy = 0, Br = 0, By = 0;
+        if (t < 2) {
+          if (k === 'axe') { const p = (t % 0.4) / 0.4; A = 12 + tap(p, 32); Oy = 10 * Math.sin(t * Math.PI); Br = 2; }
+          else if (k === 'spear') { if (t < 1.2) { const p = (t % 0.6) / 0.6; A = 15 + tap(p, 70); Br = 2 + 3 * (p > 0.72 ? 1 : 0); } else { const e = Math.sin(((t - 1.2) / 0.8) * Math.PI); A = 15 + 20 * e; By = 14 * e; } }
+          else if (k === 'shield') { const p = t % 1, q = p < 0.5 ? (p % 0.25) / 0.25 : 0; A = 18 + (p < 0.5 ? tap(q, 26) : 6 * Math.sin((p - 0.5) * Math.PI * 2)); Oy = 6 * Math.sin(t * Math.PI); }
+          else { const p = t / 2; A = p < 0.75 ? 10 + 135 * ease(p / 0.75) : 145 * (1 - ((p - 0.75) / 0.25) ** 2); Br = p < 0.75 ? 6 * ease(p / 0.75) : -4; }
+        } else {
+          const q = Math.min(2, t - 3), e = hold(q, 0.5, 1.4);
+          if (k === 'axe') { A = 20 + 90 * e; O = 115 * e; Br = -8 * e; }
+          else if (k === 'spear') { const l = q > 0.6 && q < 1.2 ? Math.sin(((q - 0.6) / 0.6) * Math.PI) : 0; O = -14 * e + 8 * l; A = 25 + 30 * e; Br = -4 * e; By = 24 * e - 8 * l; }
+          else if (k === 'shield') { const kn = q > 0.6 && q < 1.4 ? Math.abs(Math.sin(((q - 0.6) / 0.4) * Math.PI)) : 0; O = 85 * e; A = 40 + 50 * e - 25 * kn; By = -12 * e; }
+          else { A = 160 * e; O = 150 * e; Br = -12 * e; }
+        }
+        pup.pose.arm = { rot: [0, 0, dir * A] }; pup.pose.off = { rot: [0, Oy, dir * O] };
+        pup.pose.body = { rot: [0, By, dir * Br], scale: [1, 1 + 0.01 * Math.sin(t * Math.PI * 2), 1] };
       };
     }
     // a little anvil on a block, for a station
@@ -406,7 +435,7 @@ module.exports = ({ makeBuilder, makeSculpt, KIT: K }) => {
         extra: (F, bd) => { HB.box(F, [0, bd.hip - 0.12, 0.09], [0.1, 0.16, 0.012], Mt.leather(C.leather), 'body', 0.004, null, 0.01); } }
     };
     for (const [k, st] of Object.entries(ST)) {
-      if (k === 'sword') continue;
+      if (k === 'sword' || k === 'bow') continue;
       const F = HB.rig(st.x, st.z, [st.dir, 0]), anv = F.P(0, 0, 0.55), top = 0.6;
       if (on('st-' + k)) {
         smallAnvil(anv);
@@ -425,18 +454,77 @@ module.exports = ({ makeBuilder, makeSculpt, KIT: K }) => {
         L.hat(F, hd, bd); if (L.extra) L.extra(F, bd);
         if (k !== 'hammer') apron(F, bd, flat([78, 79, 8, 9]));
         const SL = bd.sh(-1), hL = [-0.16, 0.7, 0.18];
-        HB.arm(F, SL, HB.elbow(SL, hL, [-0.04, -0.06, 0]), hL, { tag: 'body', sleeve: shirt, rolled: k !== 'shield' && k !== 'hammer', cuff: shirt, skin: SK, glove: k === 'hammer' ? Mt.leather(C.leather) : null });
+        HB.arm(F, SL, HB.elbow(SL, hL, [-0.04, -0.06, 0]), hL, { tag: 'off', sleeve: shirt, rolled: k !== 'shield' && k !== 'hammer', cuff: shirt, skin: SK, glove: k === 'hammer' ? Mt.leather(C.leather) : null });
         const SR = bd.sh(1), hR = [0.05, 0.78, 0.3];
         HB.arm(F, SR, HB.elbow(SR, hR, [0.06, -0.06, -0.04]), hR, { tag: 'arm', sleeve: shirt, rolled: k !== 'shield' && k !== 'hammer', cuff: shirt, skin: SK, glove: k === 'hammer' ? Mt.leather(C.leather) : null });
         hammer(F, hR, [0.0, top + (L.big ? 0.09 : 0.065), 0.55], { big: L.big });
-        parts.body = { pivot: F.P(0, 0.2, 0), slices: 4 }; parts.arm = { pivot: F.P(...SR), parent: 'body', slices: 2 };
-        pose = swingPose(st.dir);
+        // what the off hand holds: the Spearwright a finished spear planted beside her, the Shieldwright a shield on her forearm
+        if (k === 'spear') { HB.tube(F, [[hL[0], 0.03, hL[2] - 0.02], [hL[0], 1.62, hL[2] + 0.02]], 0.014, 0.012, WOODM, 'off', 0.004);
+          HB.lathe(F, [hL[0], 1.6, hL[2] + 0.02], 0.05, 0.02, BRASSM, 'off', 0.003);
+          HB.tube(F, [[hL[0], 1.64, hL[2] + 0.02], [hL[0], 1.8, hL[2] + 0.025]], 0.032, 0.003, IRONM, 'off', 0.003);
+          HB.tube(F, [[hL[0], 1.58, hL[2] + 0.02], [hL[0] - 0.02, 1.5, hL[2] + 0.1], [hL[0] - 0.01, 1.44, hL[2] + 0.12]], 0.02, 0.006, Mt.cloth(C.red, 0.2), 'off', 0.003); }
+        if (k === 'shield') { const c = F.P(hL[0] - 0.05, hL[1] + 0.06, hL[2] - 0.02);
+          S.lathe(c, 0.03, 0.2, { r: Mt.metal(C.iron).r }, { tag: 'off', res: 0.005, ax: [F.fwd, F.side.map(v => -v), [0, 1, 0]] });
+          S.lathe(F.P(hL[0] - 0.03, hL[1] + 0.06, hL[2] - 0.02), 0.02, 0.17, Mt.cloth(C.waist, 0.15), { tag: 'off', res: 0.005, ax: [F.fwd, F.side.map(v => -v), [0, 1, 0]] });
+          S.lathe(F.P(hL[0] - 0.015, hL[1] + 0.06, hL[2] - 0.02), 0.02, 0.06, { r: Mt.metal(C.brass).r }, { tag: 'off', res: 0.004, ax: [F.fwd, F.side.map(v => -v), [0, 1, 0]] }); }
+        parts.body = { pivot: F.P(0, 0.2, 0), slices: 4 }; parts.arm = { pivot: F.P(...SR), parent: 'body', slices: 2 }; parts.off = { pivot: F.P(...SL), parent: 'body', slices: 2 };
+        pose = workPose(k, st.dir);
       }
+    }
+
+
+    // ---- the Bowyer: a lean young woodsman in a moss-green hood and tunic, a leather jerkin and bracer, a quiver on his back.
+    // He works an upright yew stave with a rasp, and now and then turns to sight down it. clip: idle 0-2 (four strokes), study 2-4.
+    // Behind him a bench with staves, a pot of arrows and a finished bow leaning on it ----
+    const bw = ST.bow, bwF = HB.rig(bw.x, bw.z, [bw.dir, 0]), stave = bwF.P(-0.02, 0, 0.3);
+    if (on('st-bow')) {
+      const bench = [bw.x + 0.25, 0, bw.z - 0.7];
+      S.box([bench[0], 0.5, bench[2]], [0.42, 0.03, 0.16], WOOD, { res: 0.012 });
+      for (const dx of [-0.36, 0.36]) for (const dz of [-0.12, 0.12]) S.box([bench[0] + dx, 0.24, bench[2] + dz], [0.025, 0.24, 0.025], WOOD, { res: 0.01 });
+      for (let i = 0; i < 3; i++) S.tube([[bench[0] - 0.36, 0.545 + i * 0.012, bench[2] - 0.08 + i * 0.06], [bench[0] + 0.38, 0.545 + i * 0.012, bench[2] - 0.06 + i * 0.06]], 0.016, 0.012, WOOD, { res: 0.006 }); // rough staves
+      S.lathe([bench[0] + 0.56, 0, bench[2] + 0.05], 0.3, t => 0.09 - 0.02 * t, { r: [18, 19, 20] }, { res: 0.008 }); // a clay pot of arrows
+      for (let i = 0; i < 7; i++) { const a = i * 0.9, x = bench[0] + 0.56 + 0.04 * Math.cos(a), z = bench[2] + 0.05 + 0.04 * Math.sin(a), lx = 0.05 * Math.cos(a), lz = 0.05 * Math.sin(a);
+        S.tube([[x, 0.2, z], [x + lx, 0.75, z + lz]], 0.006, 0.006, WOOD, { res: 0.004 });
+        S.box([x + lx, 0.72, z + lz], [0.006, 0.04, 0.018], { r: [40, 41] }, { res: 0.004 }); }
+      WM.draw(S, B, 'bow', { base: WBASE, at: [bench[0] + 0.5, 0.62, bench[2] + 0.2], s: 1.0, roll: -0.12, resK: +(env.WRES || 3), lite: true }); // a finished bow leaning on the bench
+    }
+    if (on('bow')) {
+      const F = bwF, SK = Mt.skin(C.tan), tunic = Mt.cloth(C.shirt, 0.2), jerk = Mt.leather(C.leather);
+      const bd = HB.body(F, { shirt: tunic, trous: Mt.cloth(C.trous, 0.25), boot: Mt.leather(C.boot), skin: SK, belt: jerk, buckle: BRASSM });
+      const hd = HB.head(F, bd.head, { skin: SK, beard: 'goatee', tash: 'droop', beardRamp: C.hairBlack, brow: C.hairBlack, nose: 'long', hair: 'tuft', hairRamp: C.hairBlack });
+      { const [x, y, z] = hd.at(0, 0, 0); // the hood, up, its point falling behind, and a short cape over the shoulders
+        HB.ball(F, [x, y + 0.03, z - 0.06], [0.148, 0.16, 0.15], tunic, 'body', 0.005);
+        HB.tube(F, [[x, y + 0.12, z - 0.1], [x, y + 0.06, z - 0.2], [x, y - 0.08, z - 0.24]], 0.05, 0.012, tunic, 'body', 0.004);
+        HB.ball(F, [0, bd.ch + 0.06, bd.lean - 0.01], [0.16, 0.07, 0.12], tunic, 'body', 0.005); }
+      HB.box(F, [0, bd.ch - 0.06, 0.0], [0.11, 0.15, 0.088], jerk, 'body', 0.005, null, 0.02); // the jerkin
+      for (const y of [0.0, -0.07, -0.14]) HB.tube(F, [[-0.03, bd.ch + y, 0.09], [0.03, bd.ch + y + 0.015, 0.09]], 0.005, 0.005, flat([C.rope[1], C.rope[2]]), 'body', 0.002); // its lacing
+      HB.box(F, [0, bd.hip - 0.1, 0.0], [0.105, 0.12, 0.08], tunic, 'body', 0.005, null, 0.02); // the tunic skirt
+      // the quiver across his back, fletchings over the shoulder
+      HB.tube(F, [[0.08, bd.hip - 0.05, -0.12], [-0.08, bd.ch + 0.12, -0.13]], 0.045, 0.05, jerk, 'body', 0.004);
+      for (let i = 0; i < 4; i++) HB.box(F, [-0.09 + i * 0.022, bd.ch + 0.2, -0.13 + 0.012 * (i % 2)], [0.006, 0.04, 0.016], flat([C.red[1], C.red[2], C.red[3]]), 'body', 0.003);
+      HB.tube(F, [[-0.12, bd.ch + 0.05, 0.06], [0.1, bd.hip, 0.07]], 0.008, 0.008, DLEATH, 'body', 0.003); // its strap
+      // the left hand holds the stave upright, its foot on the floor; the right works it with a rasp
+      const SL = bd.sh(-1), hL = [-0.02, 1.05, 0.3];
+      HB.arm(F, SL, HB.elbow(SL, hL, [-0.08, -0.06, -0.04]), hL, { tag: 'body', sleeve: tunic, cuff: jerk, skin: SK });
+      HB.tube(F, [[-0.02, 0.02, 0.3], [-0.02, 0.6, 0.31], [-0.02, 1.2, 0.3], [-0.02, 1.62, 0.27]], 0.013, 0.008, flat([C.wood[1], C.wood[2], C.wood[3], C.wood[4]]), 'body', 0.003);
+      const SR = bd.sh(1), hR = [0.02, 0.8, 0.33];
+      HB.arm(F, SR, HB.elbow(SR, hR, [0.07, -0.06, -0.05]), hR, { tag: 'arm', sleeve: tunic, cuff: jerk, skin: SK });
+      HB.box(F, [0.0, 0.8, 0.33], [0.014, 0.06, 0.01], IRONM, 'arm', 0.003); // the rasp
+      parts.body = { pivot: F.P(0, 0.2, 0), slices: 3 }; parts.arm = { pivot: F.P(...SR), parent: 'body', slices: 2 };
+      pose = (t, dt, pup) => {
+        if (t < 2) { const a = Math.sin(t * Math.PI * 4); pup.pose.arm = { rot: [0, 0, bw.dir * 14 * a] }; pup.pose.body = { rot: [0, 0, bw.dir * (2 + a)] }; }
+        else { const k = t - 2, e = k < 0.5 ? ease(k / 0.5) : k < 1.5 ? 1 : 1 - ease((k - 1.5) / 0.5);
+          pup.pose.arm = { rot: [0, 0, -bw.dir * 25 * e] }; pup.pose.body = { rot: [0, -22 * e, bw.dir * (2 - 6 * e)] }; }
+      };
     }
 
     // ---- a finished weapon in its rack column ----
     // each hangs from its peg: the sword hilt up, the others head up, the shield flat to the board; sized as the old rack shapes
     const RACKW = { sword: [0.83, 1.64, Math.PI], axe: [0.85, 1.77, 0], spear: [1.2, 1.64, 0], shield: [0.5, 1.63, 0], hammer: [0.94, 1.7, 0] };
+    // the bow hangs on its own peg on the wall right of the rack
+    if (layer === 'w-bow') { const bx = RX + 1.2, bz = wallZ(bx) + 0.2;
+      S.box([bx + 0.12, 1.95, bz - 0.06], [0.03, 0.03, 0.08], IRON, { res: 0.008 });
+      WM.draw(S, B, 'bow', { base: WBASE, at: [bx, 1.55, bz], s: 0.85, roll: 0, resK: +(env.WRES || 3), lite: true }); }
     if (layer.startsWith('w-') && RACKW[layer.slice(2)]) { const k = layer.slice(2), [ws, wy, wr] = RACKW[k];
       WM.draw(S, B, k, { base: WBASE, at: [RX + COLS[k], wy, RZ + 0.12], s: ws, roll: wr, resK: +(env.WRES || 3) }); }
 

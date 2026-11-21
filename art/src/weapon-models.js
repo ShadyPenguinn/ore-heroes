@@ -1,4 +1,4 @@
-// Ore Heroes: the five weapons in the detailed splat look, shared by the icon scene (art/src/weapons.js) and the forge's weapon rack
+// Ore Heroes: the six weapons in the detailed splat look, shared by the icon scene (art/src/weapons.js) and the forge's weapon rack
 // (art/src/forge.js). Each is modelled upright in its own frame (x across, y along the weapon, head or point up, z toward the
 // camera) and placed with draw(S, B, kind, { base, at, s, roll, resK }): `base` is where COLOURS start in the scene's palette,
 // `at` the frame's origin, `s` its scale, `roll` a turn about the view axis, `resK` a splat-size factor (1 = icon detail).
@@ -11,7 +11,9 @@ const COLOURS = [
   0x081830, 0x12346a, 0x2a5aa8, 0x5a90e0, 0xb0d4ff, // 32-36 sapphire
   0x3a0c0c, 0x701818, 0xa82a22, 0xd04a34, // 37-40 red cloth
   0x1a3a5a, 0x2a5a8a, 0x3a7ab0, // 41-43 painted blue
-  0x050505 // 44
+  0x050505, // 44
+  0x5a4c34, 0x9a8a66, 0xd8ccaa, 0xf4ecd4, // 45-48 linen bowstring, horn tips
+  0x1e3a1a, 0x3a6a2a, 0x6aa04a // 49-51 green fletching
 ];
 function draw(S, B, kind, o = {}) {
   const base = o.base || 0, at = o.at || [0, 0, 0], s = o.s || 1, roll = o.roll || 0, rk = (o.resK || 1) * s;
@@ -101,6 +103,31 @@ function draw(S, B, kind, o = {}) {
     disc([0, 0, 0.02], 0.025, 0.135, DSTEEL);
     ball([0, 0, 0.035], 0.12, BRASS);
     for (let i = 0; i < 8; i++) { const a = (i / 8) * Math.PI * 2; ball([0.135 * Math.cos(a), 0.135 * Math.sin(a), 0.05], 0.011, DSTEEL, 0.003); }
+  } else if (kind === 'bow') {
+    // a recurve bow: yew limbs that bow back from a leather-wrapped grip and curl forward at the tips into horn nocks, brass
+    // collars, a linen string; o.arrow nocks a fletched arrow (it points down -x, out through the bow)
+    // o.lite keeps to the first 45 colours, for a scene whose palette stops there (the forge's, unchanged since its art was drawn)
+    const LT = o.lite, STRING = LT ? M([6, 7, 8]) : M([46, 47, 48]), HORN = LT ? M([19, 20, 21]) : M([45, 46, 47]), FLETCH = LT ? M([38, 39, 40]) : M([49, 50, 51]);
+    const bx = t => -0.14 * (1 - t * t) + 0.45 * Math.max(0, Math.abs(t) - 0.8) ** 2, Y = 0.56, N = 14;
+    const BOWW = M([17, 18, 19, 20, 21], (x, y, z) => { const [a, b, c] = L(x, y, z); return 0.12 * Math.sin(b * 90 + 3 * n(a, b * 0.2, c, 8)) + 0.1 * n(a, b, c, 24); });
+    for (let i = 0; i < N; i++) for (const sg of [-1, 1]) {
+      const t0 = (0.08 + (0.92 * i) / N) * sg, t1 = (0.08 + (0.92 * (i + 1)) / N) * sg, r = u => 0.026 - 0.015 * Math.abs(u);
+      tube([[bx(t0), t0 * Y, 0], [bx(t1), t1 * Y, 0]], r(t0), r(t1), BOWW, 0.003);
+    }
+    lathe([bx(0), -0.1, 0], 0.2, t => 0.03 + 0.004 * Math.sin(Math.PI * t), LEATHER); // the grip
+    for (let i = 0; i < 6; i++) { const y = -0.085 + i * 0.034; tube([[bx(0) - 0.033, y - 0.01, 0], [bx(0) + 0.033, y + 0.01, 0]], 0.008, 0.008, M([23, 24, 25]), 0.003); }
+    for (const y of [-0.1, 0.1]) lathe([bx(y / Y), y - 0.008, 0], 0.016, 0.032, BRASS, 0.003);
+    ball([bx(0) + 0.028, 0.03, 0.012], 0.012, BRASS, 0.003); // the arrow rest
+    for (const sg of [-1, 1]) { const tip = [bx(1), sg * Y, 0]; ball(tip, 0.016, HORN, 0.003); ball([tip[0], tip[1] + sg * 0.018, 0], 0.01, STRING, 0.003); }
+    tube([[bx(1) - 0.004, -Y, 0], [bx(1) - 0.004, Y, 0]], 0.0045, 0.0045, STRING, 0.002); // the string
+    for (const y of [-0.04, 0.06]) lathe([bx(1) - 0.004, y, 0], 0.03, 0.007, HORN, 0.002); // its serving
+    if (o.arrow) {
+      const ay = 0.035, x0 = bx(1) + 0.02, x1 = -0.62;
+      tube([[x0, ay, 0.01], [x1 + 0.07, ay, 0.01]], 0.008, 0.008, M([19, 20, 21]), 0.002);
+      ball([x0 + 0.004, ay, 0.01], 0.011, M([28, 29]), 0.002); // the nock
+      plate([[0, -0.022], [0.075, 0], [0, 0.022]].map(([x, y]) => [x1 + 0.065 - x, ay + y]), [0, 0, 0.005], 0.01, STEEL, 0, 0.002);
+      for (const a of [0, 2.1, 4.2]) plate([[0, 0], [0.15, 0], [0.12, 0.04], [0.03, 0.045]].map(([x, y]) => [x0 - 0.03 - x, ay + y * Math.cos(a)]), [0, 0, 0.01 + 0.025 * Math.sin(a)], 0.004, FLETCH, 0, 0.002);
+    }
   } else if (kind === 'hammer') {
     // a warhammer: square face, a back spike, brass bands round the head with a sapphire, langets down the haft, wrapped grip
     lathe([0, -0.4, 0], 0.78, 0.028, WOOD);

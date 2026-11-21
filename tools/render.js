@@ -1,7 +1,7 @@
 // Renders every frame of the mine with ink-studio, into tools/frames/ (not committed); then `python3 tools/pack.py` packs
 // them into art/mine.png + art/mine.json. Ink-studio lives in the Blacksmith Battles repo (forge-splat-test/addons/splats/
 // tools/ink-studio); point INK_STUDIO at its cli/ink-studio.js, or keep a blacksmith-battles clone next to this repo.
-// Usage: node tools/render.js mine|forge|army|explore   (then python3 tools/pack.py the same)
+// Usage: node tools/render.js mine|forge|camp|explore   (then python3 tools/pack.py the same; camp: tools/split.py first)
 const { spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
@@ -10,9 +10,11 @@ const CLI = process.env.INK_STUDIO || path.join(ROOT, '..', 'blacksmith-battles'
 const WHICH = process.argv[2] || 'mine';
 const OUT = path.join(__dirname, 'frames', WHICH);
 // the mine is drawn in the detailed splat look at full size (px 1; the game draws it at half scale); the rest at px 2
-const VIEW = ['--clean', '--px', WHICH === 'mine' || WHICH === 'forge' ? '1' : '2', '--tone', 'off', '--zoom', '2.6', '--target', '0.7,0.95,0.3', '--w', '960', '--h', '420'];
+const VIEW = ['--clean', '--px', ['mine', 'forge', 'camp'].includes(WHICH) ? '1' : '2', '--tone', 'off', '--zoom', '2.6', '--target', '0.7,0.95,0.3', '--w', '960', '--h', '420'];
 const steps = (a, b, n) => [...Array(n)].map((_, i) => +(a + ((b - a) * i) / n).toFixed(4));
 const SWING = { idle: steps(0, 1, 12), strike: [1.0, 1.04, 1.075, 1.1, 1.12], recover: [1.15, 1.2, 1.26, 1.32, 1.38, 1.44] };
+// the station smiths: their own work loop, the finishing strike, and a moment of their own (art/src/forge.js workPose)
+const WORK = { idle: steps(0, 2, 24), strike: [2.0, 2.04, 2.075, 2.1, 2.12], recover: [2.15, 2.2, 2.26, 2.32, 2.38, 2.44], study: steps(3, 5, 20) };
 const jobs = [{ name: 'bg', env: { OH_LAYER: 'none' }, t: 0 }];
 const layout = { heroes: {} };
 function clips(HEROES) {
@@ -45,19 +47,28 @@ if (WHICH === 'mine') {
   const H = {};
   for (const w of ['none', 'sword', 'axe', 'spear', 'shield', 'hammer']) H['hero-' + w] = { idle: steps(0, 1, 8) };
   clips({ ...H, fire: { idle: steps(0, 1, 12) } });
+} else if (WHICH === 'camp') {
+  // art/src/camp.js: the fire's loop, and every body and head layer once at each of its two sets of spots (python3 tools/split.py camp
+  // then cuts each into one sprite per spot, before pack.py)
+  clips({ fire: { idle: steps(0, 1, 12) } });
+  for (const set of ['a', 'b']) {
+    for (const o of ['none', 'sword', 'bow', 'axe', 'spear', 'shield', 'hammer']) jobs.push({ name: `b-${o}-${set}`, env: { OH_LAYER: `b-${o}-${set}` }, t: 0 });
+    for (const f of ['fem', 'male', 'beard']) for (const h of ['short', 'long', 'braid', 'bun', 'bald']) jobs.push({ name: `h-${f}-${h}-${set}`, env: { OH_LAYER: `h-${f}-${h}-${set}` }, t: 0 });
+  }
 } else if (WHICH === 'explore') {
   // art/src/explore.js: your heroes facing right, the cave ghouls and the Warden facing left; idle, a swing, and a fall
   const H = {}, FIGHT = { idle: steps(0, 1, 8), hit: steps(1, 1.4, 6).concat([1.4]), fall: steps(2, 2.6, 6).concat([2.6]), walk: steps(3, 4, 8) };
   for (const w of ['sword', 'axe', 'spear', 'shield', 'hammer']) { H['u-' + w] = FIGHT; H['e-' + w] = FIGHT; }
+  H['u-bow'] = FIGHT; // only your heroes carry bows
   for (const w of ['sword', 'axe', 'spear', 'hammer']) H['w-' + w] = FIGHT;
   clips(H);
 } else {
-  // art/src/forge.js: the Blacksmith and the five smiths swing like the mine's picks; the fire loops
+  // art/src/forge.js: the Blacksmith, the five smiths and the Bowyer swing like the mine's picks; the fire loops
   clips({
-    smith: SWING, sword: { idle: steps(0, 2, 24), study: steps(2, 4, 20) }, axe: SWING, spear: SWING, shield: SWING, hammer: SWING,
+    smith: SWING, sword: { idle: steps(0, 2, 24), study: steps(2, 4, 20) }, axe: WORK, spear: WORK, shield: WORK, hammer: WORK, bow: { idle: steps(0, 2, 24), study: steps(2, 4, 20) },
     fire: { idle: steps(0, 1, 12) }
   });
-  for (const k of ['st-sword', 'st-axe', 'st-spear', 'st-shield', 'st-hammer', 'w-sword', 'w-axe', 'w-spear', 'w-shield', 'w-hammer'])
+  for (const k of ['st-sword', 'st-axe', 'st-spear', 'st-shield', 'st-hammer', 'st-bow', 'w-sword', 'w-axe', 'w-spear', 'w-shield', 'w-hammer', 'w-bow'])
     jobs.push({ name: k, env: { OH_LAYER: k }, t: 0 });
 }
 fs.mkdirSync(OUT, { recursive: true });
