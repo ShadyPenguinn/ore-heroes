@@ -70,6 +70,8 @@ for (const j of jobs) {
   if (!g) groups.push((g = { key, env: j.env, names: [], ts: [] }));
   g.names.push(j.name); g.ts.push(j.t);
 }
+// ONLY=layer,layer re-renders just those layers (the rest of the frames stay as they are)
+if (process.env.ONLY) { const keep = process.env.ONLY.split(','); for (let i = groups.length - 1; i >= 0; i--) if (!keep.includes(groups[i].env.OH_LAYER)) groups.splice(i, 1); }
 groups.sort((a, b) => b.names.length - a.names.length);
 let next = 0, running = 0, done = 0, failed = 0;
 const N = Math.max(2, require('os').cpus().length);

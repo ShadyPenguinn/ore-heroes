@@ -78,7 +78,8 @@ module.exports = (S, K, B, C) => {
     const tag = o.tag || 'body', G = S.grp(0.03), [hx, hy, hz] = H, SK = o.skin;
     const at = (a, y, b) => [hx + a, hy + y, hz + b];
     ball(F, at(0, 0, 0), [0.12, 0.13, 0.12], SK, tag, 0.006, G);
-    ball(F, at(0, -0.075, 0.04), [0.088, 0.075, 0.088], SK, tag, 0.006, G);
+    const fem = !!o.fem; // a softer face: narrower jaw, fine brows, lashes, a small nose and fuller lips
+    ball(F, at(0, -0.075, 0.04), fem ? [0.075, 0.068, 0.08] : [0.088, 0.075, 0.088], SK, tag, 0.006, G);
     for (const s of [-1, 1]) {
       ball(F, at(s * 0.062, -0.03, 0.08), [0.03, 0.024, 0.025], SK, tag, 0.004, G); // cheekbones
       ball(F, at(s * 0.122, -0.015, -0.01), [0.02, 0.034, 0.024], SK, tag, 0.004, G); // ears
@@ -89,15 +90,19 @@ module.exports = (S, K, B, C) => {
         ball(F, at(s * 0.04, 0.01, 0.121), 0.005, M.flat([C.eyeLight]), tag, 0.0015);
       }
       const br = o.brow || C.beard.slice(0, 3);
-      tube(F, [at(s * 0.08, 0.035, 0.088), at(s * 0.018, 0.042, 0.116)], 0.017, 0.012, M.flat(br), tag, 0.004);
+      if (fem) { tube(F, [at(s * 0.075, 0.042, 0.095), at(s * 0.045, 0.05, 0.11), at(s * 0.02, 0.044, 0.118)], 0.008, 0.006, M.flat(br), tag, 0.003);
+        tube(F, [at(s * 0.068, 0.02, 0.112), at(s * 0.024, 0.022, 0.124)], 0.005, 0.004, M.flat(C.eye), tag, 0.002); } // lashes
+      else tube(F, [at(s * 0.08, 0.035, 0.088), at(s * 0.018, 0.042, 0.116)], 0.017, 0.012, M.flat(br), tag, 0.004);
       if (o.eyes === 'glasses') { torus(F, at(s * 0.045, 0.003, 0.125), 0.027, 0.004, M.metal(C.brass), tag, 0.002) }
     }
     if (o.eyes === 'glasses') tube(F, [at(-0.018, 0.006, 0.128), at(0.018, 0.006, 0.128)], 0.003, 0.003, M.metal(C.brass), tag, 0.002);
     const nose = o.nose || 'round';
-    if (nose === 'round') ball(F, at(0, -0.035, 0.112), [0.028, 0.03, 0.028], SK, tag, 0.004, G);
+    if (fem) ball(F, at(0, -0.03, 0.115), [0.018, 0.022, 0.02], SK, tag, 0.004, G);
+    else if (nose === 'round') ball(F, at(0, -0.035, 0.112), [0.028, 0.03, 0.028], SK, tag, 0.004, G);
     else if (nose === 'long') tube(F, [at(0, 0.0, 0.11), at(0, -0.045, 0.15)], 0.016, 0.014, SK, tag, 0.004, G);
     else tube(F, [at(0, 0.0, 0.11), at(0, -0.02, 0.15), at(0, -0.05, 0.14)], 0.017, 0.012, SK, tag, 0.004, G);
-    ball(F, at(0, -0.085, 0.105), [0.024, 0.01, 0.01], M.flat([C.cheek[0]]), tag, 0.003); // mouth
+    if (fem) { ball(F, at(0, -0.078, 0.108), [0.024, 0.008, 0.01], M.flat([C.cheek[1]]), tag, 0.003); ball(F, at(0, -0.09, 0.106), [0.02, 0.009, 0.01], M.flat([C.cheek[1], C.cheek[2]]), tag, 0.003); }
+    else ball(F, at(0, -0.085, 0.105), [0.024, 0.01, 0.01], M.flat([C.cheek[0]]), tag, 0.003); // mouth
     const BR = o.beardRamp || C.beard.slice(0, 4), FUR = M.fur(BR, o.furLen ? { len: o.furLen } : null), beard = o.beard || 'none';
     if (beard === 'full' || beard === 'long') {
       ball(F, at(0, -0.135, 0.08), [0.092, 0.075, 0.065], FUR, tag, 0.006);
