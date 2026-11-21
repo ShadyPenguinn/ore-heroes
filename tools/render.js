@@ -42,11 +42,6 @@ if (WHICH === 'mine') {
   jobs.push({ name: 'cart-parked', env: { OH_LAYER: 'cart', OH_DIR: 'in', OH_Z: '-2.9', OH_NOBODY: '1' }, t: 0 });
   for (const dir of ['out', 'in'])
     CART_Z.forEach((z, i) => { const n = `cart-${dir}-${i}`; layout.cart[dir].push(n); jobs.push({ name: n, env: { OH_LAYER: 'cart', OH_DIR: dir, OH_Z: String(z) }, t: (i % 4) * 0.25 }); });
-} else if (WHICH === 'army') {
-  // art/src/army.js: a hero dressed for each weapon (or none) breathing at one spot, and the campfire
-  const H = {};
-  for (const w of ['none', 'sword', 'axe', 'spear', 'shield', 'hammer']) H['hero-' + w] = { idle: steps(0, 1, 8) };
-  clips({ ...H, fire: { idle: steps(0, 1, 12) } });
 } else if (WHICH === 'camp') {
   // art/src/camp.js: the fire's loop, and every body and head layer once at each of its two sets of spots (python3 tools/split.py camp
   // then cuts each into one sprite per spot, before pack.py)

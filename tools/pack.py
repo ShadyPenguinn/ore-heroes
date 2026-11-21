@@ -1,6 +1,6 @@
 """Packs the frames from render.js into art/mine.png (one atlas) and art/mine.json (where each sprite is).
 Every frame is stored as just the pixels that differ from the empty cave (bg), cropped to their box, so the whole
-scene is one background plus small cut-outs. Usage: python3 tools/pack.py mine|forge|army"""
+scene is one background plus small cut-outs. Usage: python3 tools/pack.py mine|forge|camp|explore"""
 import json, os, sys
 import numpy as np
 from PIL import Image

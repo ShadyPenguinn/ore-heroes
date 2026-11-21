@@ -109,6 +109,10 @@ img.ico3d{image-rendering:auto!important;object-fit:contain}
 .sw button.on{border-color:#ffd27a;box-shadow:0 0 0 2px rgba(255,210,122,.35)}
 .sw button.def{background:#2a221c;color:#d8d0c0;font-size:15px}
 .lookdone{margin-top:14px;width:100%}
+.b.lookme{animation:lookPulse 1.3s ease-in-out infinite;border-color:#5adcc8}
+.hname{width:100%;box-sizing:border-box;font:inherit;font-size:17px;font-weight:700;padding:6px 9px;border-radius:8px;border:1px solid var(--line);background:#14100e;color:inherit}
+.opts{display:flex;flex-wrap:wrap;gap:6px}.opts .b{padding:6px 10px;min-height:0}.opts .b.on{border-color:#ffd27a;color:#ffd27a}
+.lookhead canvas{width:88px;height:112px;image-rendering:pixelated}
 .panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:8px}
 .panel .row{flex-wrap:wrap;justify-content:flex-start}
 .ftrack{margin-top:8px;display:flex;flex-direction:column;gap:6px}
@@ -164,7 +168,7 @@ img.ico3d{image-rendering:auto!important;object-fit:contain}
       <div class="chip"><small>Ore per second</small><b id="ops">0</b></div>
       <div class="chip" id="wchip" style="display:none"><small>Forged</small><b id="wpns">0</b></div>
     </div>
-    <div class="places" id="places"><button class="b sm on" data-v="mine">Mine</button><button class="b sm" data-v="forge">Forge</button><button class="b sm" data-v="army" style="display:none">Army</button><button class="b sm" data-v="explore" style="display:none">Explore</button></div>
+    <div class="places" id="places"><button class="b sm on" data-v="mine">Mine</button><button class="b sm" data-v="forge">Forge</button><button class="b sm" data-v="army" style="display:none">Heroes</button><button class="b sm" data-v="explore" style="display:none">Explore</button></div>
     <div class="scene" id="scene"><canvas id="bd" width="480" height="210" aria-hidden="true"></canvas><canvas id="bgl" width="960" height="420" aria-hidden="true"></canvas><canvas id="cv" width="960" height="420"></canvas><div class="taphint" id="taphint">Click the rock</div><div class="fweap" id="fweap"></div><div class="fvstars" id="fvstars"></div><div class="fresult" id="fresult" style="padding-left:calc(var(--fwr,0px) + 10px)"></div><div class="fresult" id="xresult"></div><div class="fvore"><small>Ore</small><span id="fvore">0</span></div><div class="fvturn">Turn sideways for the biggest view</div><button class="fvbtn" id="fvbtn" aria-label="Full view"></button></div>
     <div class="ftrack" id="ftrack" style="display:none"><div class="ftop"><div class="fpips" id="fpipbox"><div class="fpipsin" id="fpips"></div></div><span class="fcost" id="fcost"></span><button class="b go fact" id="fact">Heat</button></div><div class="track idle" id="track"><div class="zone" id="zone"><i></i></div><div class="marker" id="marker"></div><div class="sparks" id="sparks"></div><div class="tlabel" id="tlabel"></div></div></div>
   </div>
@@ -317,8 +321,10 @@ function wPower(it){const[m,mg,cr,h,df,md,v]=wStats(it);return Math.round((m+mg)
 const itemById=id=>S.inv.find(x=>x.id===id);
 const holderOf=id=>S.heroes.findIndex(h=>h.eq===id);
 const HNAMES=['Bran','Ilse','Torvald','Wren','Osric','Maren','Edda','Rook','Sable','Corin','Hale','Tamsin','Ulric','Nell','Garrick','Brisa'];
-function recruit(){const used=S.heroes.map(h=>h.n),n=HNAMES.find(x=>!used.includes(x))||('Hero '+(S.heroes.length+1));S.heroes.push({n,eq:null});return n}
-function openArmy(){S.army=1;const n=recruit();S.sel=0;save();setPlaces();toast(`A wandering hero heard about your smithing: ${n} has joined you. ${Tap} Army.`)}
+function recruit(){if(S.heroes.length>=MAXH)return null;const used=S.heroes.map(h=>h.n),n=HNAMES.find(x=>!used.includes(x))||('Hero '+(S.heroes.length+1));S.heroes.push(heroDefaults({n,eq:null,fresh:1},S.heroes.length));heroNotice();return n}
+// a new hero: the Heroes button pulses until you go there, the hero glows until you pick them, then their Look button until you open it
+function heroNotice(){if(S.view!=='army'){(S.notice=S.notice||{}).army=1}}
+function openArmy(){S.army=1;const n=recruit();S.sel=0;save();setPlaces();toast(`Your first weapon is ready, and ${n} rises to the challenge. ${Tap} Heroes.`)}
 const HK=Object.fromEntries(HEROES.map(h=>[h.k,h]));
 const TRIP=6,PHANTOM_EVERY=1.2,BLAST=20;
 let S;
@@ -351,7 +357,7 @@ const nightText=()=>lv('lamp')?`for ${nightHours()} h at ${nightPct()}% while yo
 const costAt=(k,l)=>Math.ceil(HK[k].base*Math.pow(1.15,l));
 function costN(k,n){let c=0,l=lv(k);for(let i=0;i<n;i++)c+=costAt(k,l+i);return c}
 
-function fresh(){return{ore:0,mined:0,taps:0,blasts:0,h:{miner:1},seen:{miner:1},t:Date.now(),lastBackup:0,forge:0,view:'mine',forged:0,made:{},best:{},pick:{w:'sword',n:3},inv:[],nid:1,army:0,heroes:[],sel:0,explore:0,stage:1,renown:0,look:{},looked:{},v:4}}
+function fresh(){return{ore:0,mined:0,taps:0,blasts:0,h:{miner:1},seen:{miner:1},t:Date.now(),lastBackup:0,forge:0,view:'mine',forged:0,made:{},best:{},pick:{w:'sword',n:3},inv:[],nid:1,army:0,heroes:[],sel:0,explore:0,stage:1,renown:0,look:{},looked:{},v:5}}
 function save(){S.t=Date.now();try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
 function load(){let d=null;try{d=JSON.parse(localStorage.getItem(KEY)||'null')}catch(e){}const old=d&&!d.looked;S=Object.assign(fresh(),d||{});S.h=Object.assign({miner:1},S.h);migrate();
   // saves from before the customise nudge: heroes already hired don't all start pulsing at once
@@ -362,7 +368,9 @@ function migrate(){if((S.v||1)<2){for(const k of ['smith','smelter','axesmith','
   // v3: ingots and the Smelter are gone (Jonathan: ingots were a pointless second currency). Refund his levels and any ingots as ore
   if(S.v<3){const L=S.h.smelter||0;if(L)S.ore+=15000*(Math.pow(1.15,L)-1)/0.15;S.ore+=Math.floor(S.ingots||0)*50;delete S.h.smelter;delete S.seen.smelter;delete S.ingots;S.v=3}
   // v4: every forged weapon is kept as an item (only the best of each kind was kept before); a first weapon opens the army
-  if(S.v<4){S.inv=[];S.nid=1;for(const [w,b] of Object.entries(S.best||{}))S.inv.push({id:S.nid++,w,stars:b.stars,g:b.g,spec:b.spec||0});S.heroes=[];S.sel=0;S.explore=0;S.army=0;if(S.inv.length){S.army=1;recruit()}S.v=4}}
+  if(S.v<4){S.inv=[];S.nid=1;for(const [w,b] of Object.entries(S.best||{}))S.inv.push({id:S.nid++,w,stars:b.stars,g:b.g,spec:b.spec||0});S.heroes=[];S.sel=0;S.explore=0;S.army=0;if(S.inv.length){S.army=1;recruit()}S.v=4}
+  // v5: Heroes (was the Army): six at most, each with a face, hair and colours of their own
+  if(S.v<5){S.heroes=(S.heroes||[]).slice(0,6);S.heroes.forEach((h,i)=>heroDefaults(h,i));if(S.sel>=S.heroes.length)S.sel=0;S.v=5}}
 
 /* ---------- the scene: art/mine.png + art/mine.json, rendered from art/src/mine.js (see tools/) ---------- */
 // the canvas is 960x420 drawn as a 480x210 stage (2x), so the mine's full-detail art ("k": 2 in mine.json) lands pixel for pixel
@@ -592,25 +600,52 @@ function drawForge3D(dt){const D=F3D,a=D.anchors;forgeDrawn=true;ANVIL.hit=a.hit
   const nx=HEROES.find(h=>place(h)==='forge'&&!lv(h.k)),isNext=k=>!!(nx&&nx.k===k&&S.seen[k]);
   for(const st of STATIONS)if(open[st.w]&&!hired[st.w]&&a.sign[st.w])waitingSpot(a.sign[st.w],isNext(st.k));
   drawFx(dt)}
-/* ---------- the army's camp ---------- */
-// heroes stand in a line in front of the fire: one rendered spot, shifted sideways for each place in the line
-const SLOTX=[0,42,-42,84,-84,126];
-let aatlas=null,aimg=null;
-const sprA=(n,x=0,y=0)=>{const s=aatlas.sprites[n];if(s)ctx.drawImage(aimg,s[0],s[1],s[2],s[3],s[4]+x,s[5]+y,s[2],s[3])};
-const heroKind=h=>{const it=h.eq&&itemById(h.eq);return it&&aatlas.heroes['hero-'+it.w]?it.w:'none'};
-const heroFrame=(h,i)=>{const L=aatlas.heroes['hero-'+heroKind(h)].idle.f;return L[Math.floor(((clock+i*.37)%1)*L.length)]};
+/* ---------- the Heroes' camp ---------- */
+// up to six heroes round the campfire (art/src/camp.js). Each is a body sprite (dressed for their weapon: plain garb until they hold
+// one) under a head sprite (their face and hair), recoloured to their own look into a little canvas of their own
+const MAXH=6,FACES=['fem','male','beard'],HAIRS=['short','long','braid','bun','bald'];
+const FACE_N={fem:'Soft',male:'Sharp',beard:'Bearded'},HAIR_N={short:'Short',long:'Long',braid:'Braid',bun:'Bun',bald:'Bald'};
+const OUTFIT={none:{r:'A wanderer, waiting for a weapon.',a:'Tunic',b:'Vest'},sword:{r:'A knight, sword at the hip.',a:'Tabard',b:'Cape'},bow:{r:'A rogue, bow on the back.',a:'Cloak',b:'Jerkin'},
+  axe:{r:'A berserker, axe over the shoulder.',a:'Tunic',b:'Fur'},spear:{r:'A pikeman, spear in hand.',a:'Gambeson',b:'Sash'},shield:{r:'A guardian, shield on the back.',a:'Surcoat',b:'Trim'},hammer:{r:'A forge brute, warhammer planted.',a:'Shirt',b:'Apron'}};
+// each new hero's own start: a face, hair and colours, so the six differ (and the camp is a mixed crowd)
+const HDEF=[{face:'male',hair:'short',look:{skin:'#b07a4c',hair:'#2a2a30'}},{face:'fem',hair:'braid',look:{skin:'#8a5a36',hair:'#2a2a30'}},{face:'beard',hair:'long',look:{skin:'#eab888',hair:'#b8402e'}},
+  {face:'fem',hair:'bun',look:{skin:'#d09a6c',hair:'#5a3a24'}},{face:'male',hair:'bald',look:{skin:'#4a2a18',hair:'#2a2a30'}},{face:'fem',hair:'long',look:{skin:'#f6d2b0',hair:'#f2d27a'}}];
+function heroDefaults(h,i){const d=HDEF[i%HDEF.length];if(!h.face)h.face=d.face;if(!h.hair)h.hair=d.hair;if(!h.look)h.look={...d.look};return h}
+let catlas=null,cimg=null;
+const heroKind=h=>{const it=h.eq&&itemById(h.eq);return it&&catlas.sprites['b-'+it.w+'-0']?it.w:'none'};
+// the order to draw the spots in, back to front (spots 4 and 5 stand furthest back, 2 and 3 sit nearest the fire)
+const SPOT_ORDER=[4,5,0,1,2,3];
+const hcache=[];
+function heroCanvas(i){const h=S.heroes[i];if(!h||!catlas)return null;const kind=heroKind(h),key=JSON.stringify([kind,h.face,h.hair,h.look]);
+  if(hcache[i]&&hcache[i].key===key)return hcache[i];
+  const st=LK.camp,at=catlas,names=['b-'+kind+'-'+i,'h-'+h.face+'-'+h.hair+'-'+i],k=at.k||1;
+  const sp=names.map(n=>at.sprites[n]).filter(Boolean);if(!sp.length)return null;
+  // the canvas covers both sprites, in the atlas's own (full size) pixels
+  const x0=Math.min(...sp.map(s=>s[4]*k)),y0=Math.min(...sp.map(s=>s[5]*k)),x1=Math.max(...sp.map(s=>s[4]*k+s[2])),y1=Math.max(...sp.map(s=>s[5]*k+s[3]));
+  const cv=document.createElement('canvas');cv.width=x1-x0;cv.height=y1-y0;const c=cv.getContext('2d');
+  names.forEach((n,j)=>{const s=at.sprites[n];if(!s)return;const box=[s[0],s[1],s[2],s[3]];
+    if(st){const slots=at.slots&&at.slots[j?'h':'b-'+kind],look=j?{skin:h.look.skin,hair:h.look.hair}:{skin:h.look.skin,a:h.look.a,b:h.look.b};
+      if(slots){lookPaint(st.orig,st.work.data,st.mask,0,0,st.cv.width,box,look,slots,lookFallback(st.orig,st.mask,st.cv.width,[box]));st.ctx.putImageData(st.work,0,0,box[0],box[1],box[2],box[3])}
+      c.drawImage(st.cv,s[0],s[1],s[2],s[3],s[4]*k-x0,s[5]*k-y0,s[2],s[3])}
+    else c.drawImage(cimg,s[0],s[1],s[2],s[3],s[4]*k-x0,s[5]*k-y0,s[2],s[3])});
+  return hcache[i]={key,cv,x:x0/k,y:y0/k,w:(x1-x0)/k,h:(y1-y0)/k,k}}
+// where a hero's head and feet are on the stage
+function heroBox(i){const hc=heroCanvas(i);if(!hc)return null;const hs=catlas.sprites['h-'+S.heroes[i].face+'-'+S.heroes[i].hair+'-'+i];
+  return{cx:hc.x+hc.w/2,top:hs?hs[5]:hc.y,foot:hc.y+hc.h,x:hc.x,y:hc.y,w:hc.w,h:hc.h}}
 function drawArmy(dt){
-  const bg=aatlas.sprites.bg;ctx.drawImage(aimg,bg[0],bg[1],bg[2],bg[3],-3,-3,486,216);
-  glow(130,128,46+4*Math.sin(clock*4),'255,150,60',.2);
-  {const L=aatlas.heroes.fire.idle.f;sprA(L[Math.floor((clock%1)*L.length)])}
-  S.heroes.forEach((h,i)=>{if(i>=SLOTX.length)return;const f=heroFrame(h,i),s=aatlas.sprites[f],x=SLOTX[i],cx=s[4]+x+s[2]/2,foot=s[5]+s[3];
-    if(i===S.sel){ctx.save();ctx.fillStyle='rgba(255,200,110,.28)';ctx.beginPath();ctx.ellipse(cx,foot-1,14,4,0,0,Math.PI*2);ctx.fill();ctx.restore()}
-    sprA(f,x);
-    ctx.save();ctx.font='bold 9px system-ui,sans-serif';ctx.textAlign='center';ctx.fillStyle='rgba(0,0,0,.7)';ctx.fillText(h.n,cx+1,s[5]-3);ctx.fillStyle=i===S.sel?'#ffd27a':'#d8d0c0';ctx.fillText(h.n,cx,s[5]-4);ctx.restore()});
-  drawFx(dt);
-}
-function armyTap(x,y){let best=-1,bd=1e9;S.heroes.forEach((h,i)=>{if(i>=SLOTX.length)return;const s=aatlas.sprites[heroFrame(h,i)],cx=s[4]+SLOTX[i]+s[2]/2,cy=s[5]+s[3]/2,d=Math.abs(x-cx)+Math.abs(y-cy)*.4;if(Math.abs(x-cx)<22&&d<bd){bd=d;best=i}});
-  if(best>=0){S.sel=best;amode='hero';refreshArmy();save()}}
+  const bg=catlas.sprites.bg;bgBlit(cimg,bg,'camp');
+  glow(catlas.fire[0],catlas.fire[1]-6,50+5*Math.sin(clock*4)+3*Math.sin(clock*11),'255,150,60',.22);
+  for(const i of SPOT_ORDER){const h=S.heroes[i];if(!h)continue;const hc=heroCanvas(i);if(!hc)continue;const b=heroBox(i);
+    if(i===S.sel){ctx.save();ctx.fillStyle='rgba(255,200,110,.3)';ctx.beginPath();ctx.ellipse(b.cx,b.foot-2,13,3.5,0,0,Math.PI*2);ctx.fill();ctx.restore()}
+    if(h.fresh)glow(b.cx,b.top+b.h*.35,22,'255,150,60',.25+.2*Math.sin(clock*6));
+    ctx.drawImage(hc.cv,hc.x,hc.y,hc.w,hc.h)}
+  {const L=catlas.heroes.fire.idle.f;sprC(L[Math.floor((clock%1)*L.length)])}
+  ctx.save();ctx.font='bold 8px system-ui,sans-serif';ctx.textAlign='center';
+  S.heroes.forEach((h,i)=>{const b=heroBox(i);if(!b)return;ctx.fillStyle='rgba(0,0,0,.7)';ctx.fillText(h.n,b.cx+1,b.top-2);ctx.fillStyle=h.fresh?'#ffb070':i===S.sel?'#ffd27a':'#d8d0c0';ctx.fillText(h.n,b.cx,b.top-3)});
+  ctx.restore();drawFx(dt)}
+const sprC=(n,x=0,y=0)=>{const s=catlas.sprites[n];if(s)ctx.drawImage(cimg,s[0],s[1],s[2],s[3],s[4]+x,s[5]+y,s[6],s[7])};
+function armyTap(x,y){let best=-1,bd=1e9;S.heroes.forEach((h,i)=>{const b=heroBox(i);if(!b)return;const cy=b.y+b.h/2,d=Math.abs(x-b.cx)+Math.abs(y-cy)*.4;if(Math.abs(x-b.cx)<b.w/2+4&&y>b.top-10&&y<b.foot+4&&d<bd){bd=d;best=i}});
+  if(best>=0){S.sel=best;const h=S.heroes[best];if(h.fresh){h.fresh=0}amode='hero';refreshArmy();save()}}
 // the panel under the camp: the hero, their weapon, then your weapons as sprites, then one weapon's details
 let amode='hero',adet=null;
 const wTitle=it=>`${GR[it.g].n} ${WEAP[it.w].n}`;
@@ -619,7 +654,7 @@ function iconBox(it){const d=document.createElement('div');d.className='ic';d.st
 function refreshArmy(){const on=S.army&&S.view==='army';$('#apanel').style.display=on?'':'none';if(!on)return;const P=$('#apanel'),h=S.heroes[S.sel]||S.heroes[0];if(!h)return;
   const cur=h.eq&&itemById(h.eq);
   if(amode==='hero'){
-    P.innerHTML=`<div class="ahead"><div class="grow"><h3>${h.n}</h3><span class="note">${S.heroes.length>1?`Hero ${S.sel+1} of ${S.heroes.length} · ${TAP} a hero to switch`:'Your first hero'}</span></div></div>`+
+    P.innerHTML=`<div class="ahead"><div class="grow"><h3>${h.n}</h3><span class="note">${S.heroes.length>1?`Hero ${S.sel+1} of ${S.heroes.length} · ${TAP} a hero to switch`:'Your first hero'}</span></div><button class="b sm${h.looked?'':' lookme'}" data-a="look">Look</button></div>`+
       (cur?`<div class="aw" id="acur"><div class="grow"><b style="color:${GCOL[cur.g]}">${wTitle(cur)}</b> <span class="note">★${cur.stars} · Power ${fmtN(wPower(cur))}</span></div></div>${statGrid(cur)}<div class="row"><button class="b go" data-a="pick">Change weapon</button><button class="b" data-a="unequip">Unequip</button>${S.sel>0?'<button class="b" data-a="fwd">Move to front</button>':''}</div>`
           :`<p class="note">Nothing equipped yet.</p><div class="row"><button class="b go" data-a="pick" ${S.inv.length?'':'disabled'}>Equip</button></div>`);
     if(cur)P.querySelector('#acur').prepend(iconBox(cur));
@@ -638,10 +673,11 @@ function refreshArmy(){const on=S.army&&S.view==='army';$('#apanel').style.displ
   }}
 $('#apanel').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const h=S.heroes[S.sel];
   if(b.dataset.id){adet=+b.dataset.id;amode='det'}
+  else if(b.dataset.a==='look')return openHeroLook(S.sel);
   else if(b.dataset.a==='pick')amode='pick';else if(b.dataset.a==='back')amode='hero';
   else if(b.dataset.a==='unequip'){h.eq=null;save()}
   else if(b.dataset.a==='fwd'){S.heroes.splice(S.sel,1);S.heroes.unshift(h);S.sel=0;toast(`${h.n} leads the line`);save()}
-  else if(b.dataset.a==='equip'){const hi=holderOf(adet);if(hi>=0)S.heroes[hi].eq=null;h.eq=adet;amode='hero';toast(`${h.n} takes up the ${wTitle(itemById(adet))}`);if(!S.explore){S.explore=1;setPlaces();setTimeout(()=>toast('Explore is open: lead your army deeper into the cave.'),1500)}save()}
+  else if(b.dataset.a==='equip'){const hi=holderOf(adet);if(hi>=0)S.heroes[hi].eq=null;h.eq=adet;amode='hero';toast(`${h.n} takes up the ${wTitle(itemById(adet))}`);if(!S.explore){S.explore=1;setPlaces();setTimeout(()=>toast('Explore is open: lead your heroes deeper into the cave.'),1500)}save()}
   refreshArmy()});
 /* ---------- Explore: deeper into the cave, fights as in Blacksmith Battles ----------
    Your heroes with weapons form a line (hero 1 in front). Every unit fills an attack meter by its Haste and swings when it is full.
@@ -682,7 +718,7 @@ const sprX=(n,x=0,y=0)=>{const s=xatlas.sprites[n];if(s)ctx.drawImage(ximg,s[0],
 const XDUR={idle:1,hit:.4,fall:.6,walk:1},XGAP=30,WALK=80,REST=-110; // REST: where your line waits, back from the meeting point // walking speed in px a second
 function xLayer(u){return (u.side===0?'u-':u.warden?'w-':'e-')+u.w}
 // Explore: your line marches in from the left, the foes walk in from the right, and they meet; after a win your heroes walk on, deeper
-function startFight(){const A=heroUnits();if(!A.length){toast('Equip a hero in the Army first.');return}
+function startFight(){const A=heroUnits();if(!A.length){toast('Equip a hero in Heroes first.');return}
   const st=Math.min(S.stage,WARDEN_STAGE),B=foeSquad(st),seed=(Math.random()*1e9)>>>0,clone=a=>a.map(u=>({...u}));
   const res=simFight(clone(A),clone(B),seed),all=[...clone(A),...clone(B)];
   all.forEach(u=>{u.at=Math.random();u.px=null;u.dead=false;u.seg='walk';u.ox=u.side?230+12*parseInt(u.id.slice(2)):xArrive+REST});
@@ -705,11 +741,11 @@ function exploreLogic(dt){if(!battle){if(xArrive<0)xArrive=Math.min(0,xArrive+WA
 function skipFight(){const b=battle;if(!b||!b.live)return;for(const u of b.U){u.ox=0;if(u.seg==='walk')u.seg='idle'}b.phase='fight';while(b.live){b.acc=1e9;exploreLogic(0)}b.fl=[]}
 function endFight(){const b=battle;b.live=false;b.phase='after';b.T=0;let msg;
   if(b.res.win&&!b.replay){const wd=b.st>=WARDEN_STAGE,ren=wd?6:2;S.renown=(S.renown||0)+ren;S.stage=b.st+1;
-    msg=wd?'The Copper Warden falls! Past him the tunnel opens toward Bronze.':`Stage ${b.st} cleared! Your army pushes deeper.`;
-    const joined=[];while(S.renown>=heroAt(S.heroes.length+1))joined.push(recruit());
-    if(joined.length){S.armyNew=1;setPlaces();msg=`${wd?'The Copper Warden falls!':`Stage ${b.st} cleared!`} ${joined.join(' and ')} heard of it and ${joined.length>1?'join':'joins'} your army!`;setTimeout(()=>toast(`${joined.join(' and ')} ${joined.length>1?'have':'has'} joined your army!`),900)}}
+    msg=wd?'The Copper Warden falls! Past him the tunnel opens toward Bronze.':`Stage ${b.st} cleared! Your heroes push deeper.`;
+    const joined=[];while(S.heroes.length<MAXH&&S.renown>=heroAt(S.heroes.length+1))joined.push(recruit());
+    if(joined.length){setPlaces();msg=`${wd?'The Copper Warden falls!':`Stage ${b.st} cleared!`} ${joined.join(' and ')} heard of it and ${joined.length>1?'join':'joins'} you at the campfire!`;setTimeout(()=>toast(`${joined.join(' and ')} ${joined.length>1?'have':'has'} joined you at the campfire!`),900)}}
   else if(b.res.win)msg='The Warden falls again.';
-  else msg='Your line fell. Forge stronger weapons, or change the order in the Army.';
+  else msg='Your line fell. Forge stronger weapons, or change the order in Heroes.';
   xMsg=msg;save();refreshExplore()}
 function linePos(u,arr){const alive=arr.filter(x=>!x.dead),i=alive.indexOf(u);return i<0?null:i}
 function drawExplore(dt){const bg=xatlas.sprites.bg;ctx.drawImage(ximg,bg[0],bg[1],bg[2],bg[3],-3,-3,486,216);
@@ -818,7 +854,23 @@ function openLook(k){const h=HEROES.find(q=>q.k===k),slots=slotsOf(k);if(!slots)
     if(b.dataset.c)lk[s]=b.dataset.c;else delete lk[s];if(!Object.keys(lk).length)delete S.look[k];
     b.parentNode.querySelectorAll('button').forEach(q=>q.classList.toggle('on',q===b));lookApply(k);pv();save()};
   $('#lookbg').classList.add('on')}
-function closeLook(){$('#lookbg').classList.remove('on');buildCards()}
+// a camp hero's own look: their name, face, hair and colours; the preview is their sprite from the camp, big
+function heroPreview(i){const hc=heroCanvas(i);const c=document.createElement('canvas');c.width=88;c.height=112;if(!hc)return c;const x=c.getContext('2d');x.imageSmoothingEnabled=false;
+  const sc=Math.min(88/hc.cv.width,112/hc.cv.height)*1;x.drawImage(hc.cv,(88-hc.cv.width*sc)/2,112-hc.cv.height*sc,hc.cv.width*sc,hc.cv.height*sc);return c}
+function openHeroLook(i){const h=S.heroes[i];if(!h)return;if(!h.looked||h.fresh){h.looked=1;h.fresh=0;save();refreshArmy()}
+  const box=$('#lookbox'),kind=heroKind(h),O=OUTFIT[kind],slots=catlas.slots||{},bs=slots['b-'+kind]||{},hs=slots.h||{};
+  const sw=(s,on)=>on?`<div class="lookrow"><div class="sw" data-s="${s}">${LOOK_SW[s].map(c=>`<button style="background:${c}" data-c="${c}" class="${h.look[s]===c?'on':''}" aria-label="${c}"></button>`).join('')}<button class="def${h.look[s]?'':' on'}" data-c="" aria-label="As drawn">↺</button></div></div>`:'';
+  const opts=(k,list,names)=>`<div class="lookrow"><div class="opts" data-o="${k}">${list.map(v=>`<button class="b sm${h[k]===v?' on':''}" data-v="${v}">${names[v]}</button>`).join('')}</div></div>`;
+  box.innerHTML=`<div class="lookhead"><div class="pv"></div><div class="grow"><input class="hname" maxlength="14" value="${h.n}" aria-label="Name"><p class="ldesc">${O.r}</p></div></div>`+
+    opts('face',FACES,FACE_N)+opts('hair',HAIRS,HAIR_N)+sw('skin',hs.skin)+sw('hair',hs.hair)+sw('a',bs.a)+sw('b',bs.b)+`<button class="b go lookdone" data-done="1">Done</button>`;
+  const pv=()=>box.querySelector('.pv').replaceChildren(heroPreview(i));pv();
+  const nm=box.querySelector('.hname');nm.oninput=()=>{const v=nm.value.replace(/[<>&"'`\\]/g,'').slice(0,14);if(v!==nm.value)nm.value=v;if(v.trim()){h.n=v.trim();save()}};
+  box.onclick=e=>{if(e.target.closest('[data-done]'))return closeLook();const o=e.target.closest('.opts .b');
+    if(o){h[o.parentNode.dataset.o]=o.dataset.v;o.parentNode.querySelectorAll('.b').forEach(q=>q.classList.toggle('on',q===o));pv();save();return}
+    const b=e.target.closest('.sw button');if(!b)return;const s=b.parentNode.dataset.s;if(b.dataset.c)h.look[s]=b.dataset.c;else delete h.look[s];
+    b.parentNode.querySelectorAll('button').forEach(q=>q.classList.toggle('on',q===b));pv();save()};
+  $('#lookbg').classList.add('on')}
+function closeLook(){$('#lookbg').classList.remove('on');buildCards();refreshArmy()}
 $('#lookbg').addEventListener('click',e=>{if(e.target.id==='lookbg')closeLook()});
 /* ---------- hero cards ---------- */
 // hero portraits and weapon icons are rendered from the KayKit models by tools/icons.js into art/icons/
@@ -881,7 +933,7 @@ $('#fweap').addEventListener('click',e=>{const t=e.target.closest('button');if(!
 // a fold circle picks the blank's size; the highest keeps following the Blacksmith's limit as he levels
 $('#fpipbox').addEventListener('click',e=>{const t=e.target.closest('.pip.f');if(!t||F)return;const k=+t.dataset.n;S.pick.n=k;S.pick.auto=k>=foldLimit();refreshForge();save()});
 function setPlaces(){$('#places').classList.toggle('on',!!S.forge);$('#res').classList.toggle('three',!!S.forge);$('#wchip').style.display=S.forge?'':'none';
-  if(!S.forge)S.view='mine';if(!S.army&&S.view==='army')S.view='mine';if(!S.explore&&S.view==='explore')S.view='mine';$('#places').classList.toggle('three',!!S.army&&!S.explore);$('#places').classList.toggle('four',!!S.explore);$('[data-v=army]').style.display=S.army?'':'none';$('[data-v=army]').classList.toggle('dot',!!S.armyNew&&S.view!=='army');if(S.view==='army')S.armyNew=0;$('[data-v=explore]').style.display=S.explore?'':'none';
+  if(!S.forge)S.view='mine';if(!S.army&&S.view==='army')S.view='mine';if(!S.explore&&S.view==='explore')S.view='mine';$('#places').classList.toggle('three',!!S.army&&!S.explore);$('#places').classList.toggle('four',!!S.explore);$('[data-v=army]').style.display=S.army?'':'none';$('[data-v=explore]').style.display=S.explore?'':'none';
   if(S.notice)delete S.notice[S.view];for(const b of $('#places').children){b.classList.toggle('on',b.dataset.v===S.view);b.classList.toggle('flash',!!(S.notice&&S.notice[b.dataset.v]))}refreshArmy();refreshExplore();
   const done=S.view==='forge'?fhintGone:hintGone;$('#taphint').textContent=S.view==='forge'?`${Tap} to heat a blank, then strike`:`${Tap} the rock`;refreshForge();$('#taphint').style.opacity=done||S.view==='army'||S.view==='explore'?0:1}
 $('#places').addEventListener('click',e=>{const b=e.target.closest('[data-v]');if(!b||!S.forge||b.dataset.v===S.view)return;slide={from:S.view,t:0};S.view=b.dataset.v;amode='hero';pops.length=0;parts.length=0;setPlaces();buildCards();save()});
@@ -907,11 +959,13 @@ window.addEventListener('pagehide',save);
 
 load();
 const pic=src=>new Promise((ok,bad)=>{const i=new Image();i.onload=()=>ok(i);i.onerror=bad;i.src=src});
-const mineSlots=pic('art/mine-slots.png').catch(()=>null),forgeSlots=pic('art/forge-slots.png').catch(()=>null);
-Promise.all([fetch('art/mine.json').then(r=>r.json()),pic('art/mine.png'),fetch('art/forge.json').then(r=>r.json()),pic('art/forge.png'),fetch('art/army.json').then(r=>r.json()),pic('art/army.png'),fetch('art/explore.json').then(r=>r.json()),pic('art/explore.png')]).then(([a,i,fa,fi,aa,ai,xa,xi])=>{
+const mineSlots=pic('art/mine-slots.png').catch(()=>null),forgeSlots=pic('art/forge-slots.png').catch(()=>null),campSlots=pic('art/camp-slots.png').catch(()=>null);
+Promise.all([fetch('art/mine.json').then(r=>r.json()),pic('art/mine.png'),fetch('art/forge.json').then(r=>r.json()),pic('art/forge.png'),fetch('art/camp.json').then(r=>r.json()),pic('art/camp.png'),fetch('art/explore.json').then(r=>r.json()),pic('art/explore.png')]).then(([a,i,fa,fi,aa,ai,xa,xi])=>{
   // an atlas drawn at 1/k: [sx, sy, sw, sh, x, y] gets its place and size on the stage as [.., x/k, y/k, sw/k, sh/k]
-  for(const at of [a,fa]){const k=at.k||1;for(const s of Object.values(at.sprites)){s[6]=s[2]/k;s[7]=s[3]/k;s[4]/=k;s[5]/=k}}
-  atlas=a;img=i;fatlas=fa;fimg=fi;lookReady=Promise.all([mineSlots,forgeSlots]).then(([sm,sf])=>{if(sm&&a.slots)img=lookInit('mine',i,sm,a);if(sf&&fa.slots)fimg=lookInit('forge',fi,sf,fa);for(const k in S.look||{})lookApply(k);buildCards()});aatlas=aa;aimg=ai;xatlas=xa;ximg=xi;
+  for(const at of [a,fa,aa]){const k=at.k||1;for(const s of Object.values(at.sprites)){s[6]=s[2]/k;s[7]=s[3]/k;s[4]/=k;s[5]/=k}}
+  atlas=a;img=i;fatlas=fa;fimg=fi;lookReady=Promise.all([mineSlots,forgeSlots]).then(([sm,sf])=>{if(sm&&a.slots)img=lookInit('mine',i,sm,a);if(sf&&fa.slots)fimg=lookInit('forge',fi,sf,fa);for(const k in S.look||{})lookApply(k);buildCards()});
+  // the camp: its fire's place for the glow; heroes are recoloured from a CPU copy of the atlas into canvases of their own
+  catlas=aa;cimg=ai;{const f=aa.sprites[aa.heroes.fire.idle.f[0]];aa.fire=[f[4]+f[6]/2,f[5]+f[7]]}campSlots.then(sc=>{if(sc&&aa.slots){lookInit('camp',ai,sc,aa);hcache.length=0}});xatlas=xa;ximg=xi;
   A.miner=new Actor('miner',e=>{if(e==='strike')minerLanded()});A.pros=new Actor('pros',e=>{if(e==='strike')prospLanded()});
   A.phantom=new Actor('phantom',e=>{if(e==='strike'){const g=ghostTint();gain(phantomRate()*PHANTOM_EVERY,SPOT.phantom.pop,g.pop);burst(SPOT.phantom.hit,6,[g.spark,'#d88038','#f0b070'],.7)}});
   A.boss=new Actor('boss');A.blast=new Actor('blast');A.lamp=new Actor('lamp');A.time=new Actor('time');
