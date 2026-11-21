@@ -66,15 +66,18 @@ h2{font-family:var(--display);font-size:17px;letter-spacing:.04em;margin:0}
 .b.go:disabled{background:var(--panel2);border-color:var(--line);color:var(--fg)}
 .b.sm{min-height:34px;padding:5px 10px;font-size:12px}
 .cards{display:flex;flex-direction:column;gap:8px}
-.card{display:grid;grid-template-columns:44px 1fr auto;gap:10px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:8px 10px}
+.card{display:grid;grid-template-columns:44px 1fr auto;gap:8px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:6px 10px}
 .card .pic{width:44px;height:56px;border-radius:8px;background:#0c0a09;display:grid;place-items:center;overflow:hidden}
 .card .pic canvas,.card .pic img{image-rendering:pixelated;width:44px;height:56px}
 img.ico3d{image-rendering:auto!important;object-fit:contain}
-.card b{font-family:var(--display);font-size:15px;letter-spacing:.03em}
-.card .lv{color:var(--ember);font-weight:700;margin-left:4px;font-variant-numeric:tabular-nums}
-.card .what{color:var(--fg);font-size:13px}
-.card .next{color:var(--muted);font-size:12px}
-.card .buy{display:flex;flex-direction:column;align-items:stretch;min-width:96px}
+.card b{font-family:var(--display);font-size:13px;letter-spacing:.01em}
+.card .lv{color:var(--ember);font-weight:700;font-size:12px;margin-left:4px;font-variant-numeric:tabular-nums}
+.card .line{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card.locked .line{white-space:normal}
+.card .what{color:var(--fg);font-size:12px;font-weight:600;margin-left:5px}
+.card.locked .what{display:block;margin:2px 0 0;white-space:normal;font-weight:400}
+.card .buy{display:flex;flex-direction:column;align-items:stretch;min-width:66px}
+.card .buy .b{padding-left:8px;padding-right:8px}
 .card .buy .b{font-variant-numeric:tabular-nums}
 .card.locked{opacity:.6;grid-template-columns:44px 1fr}
 .card.fresh{border-color:var(--ember);box-shadow:0 0 0 1px var(--ember) inset}
@@ -83,7 +86,6 @@ img.ico3d{image-rendering:auto!important;object-fit:contain}
 .toast.show{opacity:1;transform:translateX(-50%)}
 /* customise a mine hero: tap the portrait */
 .card.cust .pic{position:relative;cursor:pointer}
-.card.cust .pic::after{content:"";position:absolute;right:2px;bottom:2px;width:13px;height:13px;border-radius:50%;background:var(--ember) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23201510' stroke-width='3' stroke-linecap='round'%3E%3Cpath d='M4 20l4-1L19 8l-3-3L5 16z'/%3E%3C/svg%3E") center/9px no-repeat}
 .lookbg{position:fixed;inset:0;z-index:150;background:rgba(0,0,0,.6);display:none;align-items:flex-end;justify-content:center}
 .lookbg.on{display:flex}
 .lookbox{width:min(480px,100%);max-height:88vh;overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:16px 16px 0 0;padding:14px 16px calc(14px + env(safe-area-inset-bottom,0px))}
@@ -181,37 +183,37 @@ const nextMs=lv=>{for(const m of MS)if(lv<m)return m;return 100+50*(Math.floor((
 const TOOLS=['Copper','Iron','Steel','Moonsilver','Starmetal'];
 const HEROES=[
   {k:'miner',n:'Miner',base:10,
-    what:()=>`You. +${fmtN(minerTap())} ore every time you tap`,
+    what:()=>`+${fmtN(minerTap())}/tap`,
     ms:lv=>`Level ${nextMs(lv)}: ${TOOLS[Math.min(4,msCount(lv)+1)]} pick, double ore per tap`},
   {k:'carter',n:'Carter',base:100,
-    what:()=>`Rides the cart into the tunnel and back: ${fmtN(carterRate()*TRIP/timeSpeed())} ore a trip`,
+    what:()=>`+${fmtN(carterRate()*TRIP/timeSpeed())}/trip`,
     ms:lv=>`Level ${nextMs(lv)}: ${['greased wheels','a bigger cart','a second cart','iron rails'][Math.min(3,msCount(lv))]}, double loads`,
     req:()=>lv('miner')>=5&&S.taps>=25, hint:'The Miner is getting the hang of it. Keep tapping and level the Miner.'},
   {k:'phantom',n:'Phantom Miner',base:1000,
-    what:()=>`A ghost miner who still works the rock: ${fmtN(phantomRate())} ore/s`,
+    what:()=>`+${fmtN(phantomRate())}/s`,
     ms:lv=>`Level ${nextMs(lv)}: ${['a brighter glow','a second spectral edge','twin picks','a storm of picks'][Math.min(3,msCount(lv))]}, double strikes`,
     req:()=>lv('carter')>=5&&lv('miner')>=10, hint:'Something stirs in the dark. Level the Carter and the Miner.'},
   {k:'prospector',n:'Prospector',base:8000,
-    what:()=>`Swings beside you every time you swing: +${fmtN(prospTap())} ore a swing`,
+    what:()=>`+${fmtN(prospTap())}/hit`,
     ms:lv=>`Level ${nextMs(lv)}: ${TOOLS[Math.min(4,msCount(lv)+1)]} pick, double ore`,
     req:()=>lv('phantom')>=5&&S.taps>=400, hint:'Someone is watching how you swing. Keep tapping, and level the Phantom Miner.'},
   // the Foreman (Jonathan, Nov 19): tells the Miner to swing on a timer, tapping or not. 10 s at level 1, shorter every level, no floor.
   {k:'foreman',n:'Foreman',base:25000,
-    what:()=>`Blows his whistle and the Miner swings: ${foremanText()}`,
+    what:()=>foremanShort(),
     ms:lv=>`Level ${nextMs(lv)}: ${['a louder whistle','a pocket watch that runs fast','a megaphone','a brass band'][Math.min(3,msCount(lv))]}, twice as many swings`,
     req:()=>lv('prospector')>=5&&S.taps>=1000, hint:'Your arm is getting tired. Keep tapping, and level the Prospector.'},
   {k:'blaster',n:'Blaster',base:400000,
-    what:()=>`Lights a fuse every ${Math.round(BLAST/timeSpeed()*10)/10}s: ${fmtN(blasterRate()*BLAST/timeSpeed())} ore a blast`,
+    what:()=>`+${fmtN(blasterRate()*BLAST/timeSpeed())}/blast`,
     ms:lv=>`Level ${nextMs(lv)}: ${['longer fuses','bigger charges','blasting jelly','thunder powder'][Math.min(3,msCount(lv))]}, double blasts`,
     req:()=>lv('foreman')>=5&&S.mined>=1e6, hint:'Big rocks need a bigger answer. Mine a lot more ore.'},
   {k:'lamp',n:'Lamplighter',base:5e6,noMs:true,
-    what:()=>`+${Math.round((lampBoost()-1)*100)}% all mine ore. Keeps the mine working ${nightText()}`,
+    what:()=>`+${Math.round((lampBoost()-1)*100)}% ore`,
     ms:lv=>lv<12?`Next level: lanterns burn 1 more hour while you're away`:`Next level: +1% of ore kept while away`,
     req:()=>lv('blaster')>=5&&S.blasts>=10, hint:'The lanterns gutter out whenever you leave. Keep blasting.'},
   // the Time Miner (Jonathan, Nov 19): late game; shaves time off every timed hero (the Carter's trips, the Phantom Pick,
   // the Foreman's whistle, the Blaster's fuse). +3% speed per level, doubled at milestones, no ceiling.
   {k:'time',n:'Time Miner',base:1e8,noMs:true,
-    what:()=>`Turns his hourglass and the whole mine hurries: everything timed runs ${Math.round(timeSpeed()*100)/100}× as fast`,
+    what:()=>`${Math.round(timeSpeed()*100)/100}× speed`,
     ms:lv=>`Next level: everything timed runs 3% faster`,
     req:()=>lv('lamp')>=5&&S.mined>=1e8, hint:'Everything here takes so long. Dig deeper.'},
   /* ---------- the forge (opens when the Foreman is hired, about minute 10) ----------
@@ -220,26 +222,26 @@ const HEROES=[
      and costs a third of your stars; Quench banks the score early. Stars set the grade. Forge heroes never forge on their
      own: they make it easier (the Blacksmith) or better (the smiths). There are no ingots: blanks are paid in ore. */
   {k:'smith',n:'Blacksmith',base:3000,place:'forge',noMs:true,
-    what:()=>`You. Blanks hold up to ${maxFolds()} Folds (${MATCAP} in Copper). Glow ${zoneW()}% wide, marker at ${Math.round(smithSlow()*100)}% speed`,
+    what:()=>`${maxFolds()} Folds · glow ${zoneW()}%`,
     ms:lv=>smithMs(lv)},
   {k:'swordsmith',n:'Swordsmith',base:15000,place:'forge',noMs:true,w:'sword',
-    what:()=>`Every Sword you forge gets +${3*lv('swordsmith')}% Might and Haste, locked in when it's forged`,
+    what:()=>`+${3*lv('swordsmith')}% Swords`,
     ms:lv=>`Next level: +3% more`,
     req:()=>lv('smith')>=5, hint:'The Blacksmith learns Swords at level 5.'},
   {k:'axesmith',n:'Axesmith',base:1e5,place:'forge',noMs:true,w:'axe',
-    what:()=>`Every Axe you forge gets +${3*lv('axesmith')}% Might and Vigor, locked in when it's forged`,
+    what:()=>`+${3*lv('axesmith')}% Axes`,
     ms:lv=>`Next level: +3% more`,
     req:()=>lv('smith')>=25, hint:'The Blacksmith learns Axes at level 25.'},
   {k:'spearwright',n:'Spearwright',base:1e6,place:'forge',noMs:true,w:'spear',
-    what:()=>`Every Spear you forge gets +${3*lv('spearwright')}% Haste and Might, locked in when it's forged`,
+    what:()=>`+${3*lv('spearwright')}% Spears`,
     ms:lv=>`Next level: +3% more`,
     req:()=>lv('smith')>=50, hint:'The Blacksmith learns Spears at level 50.'},
   {k:'shieldwright',n:'Shieldwright',base:1e7,place:'forge',noMs:true,w:'shield',
-    what:()=>`Every Shield you forge gets +${3*lv('shieldwright')}% Defense and Magic Defense, locked in when it's forged`,
+    what:()=>`+${3*lv('shieldwright')}% Shields`,
     ms:lv=>`Next level: +3% more`,
     req:()=>lv('smith')>=75, hint:'The Blacksmith learns Shields at level 75.'},
   {k:'hammersmith',n:'Hammersmith',base:1e8,place:'forge',noMs:true,w:'hammer',
-    what:()=>`Every Warhammer you forge gets +${3*lv('hammersmith')}% Might and Defense, locked in when it's forged`,
+    what:()=>`+${3*lv('hammersmith')}% Warhammers`,
     ms:lv=>`Next level: +3% more`,
     req:()=>lv('smith')>=100, hint:'The Blacksmith learns Warhammers at level 100.'}
 ];
@@ -308,6 +310,7 @@ const blastOre=()=>lv('blaster')*mult('blaster')*(400*lampBoost()+0.5*tapOre());
 const blasterRate=()=>blastOre()/BLAST*timeSpeed();
 // Foreman calls per second: 1 every 10 s at level 1, +0.02 a second every level, doubled at milestones. No ceiling.
 const foremanCalls=()=>lv('foreman')?(0.1+0.02*(lv('foreman')-1))*mult('foreman')*timeSpeed():0;
+const foremanShort=()=>{const c=foremanCalls();return c<1?`1 swing/${Math.round(10/c*10)/10}s`:`${fmtN(c)}/s`};
 const foremanText=()=>{const c=foremanCalls();return c<1?`once every ${Math.round(10/c*10)/10} s`:`${fmtN(c)} swings a second`};
 const autoRate=()=>carterRate()+phantomRate()+blasterRate()+foremanCalls()*tapOre();
 const nightHours=()=>Math.min(12,lv('lamp'));
@@ -724,7 +727,7 @@ function lookIcon(k,el){const L=LOOK_LAYER[k],look=(S.look||{})[k];if(!L||!look|
 function openLook(k){const h=HEROES.find(q=>q.k===k),L=LOOK_LAYER[k],slots=atlas.slots&&atlas.slots[L];if(!slots)return;
   const look=(S.look||(S.look={}))[k]||{},box=$('#lookbox');
   const row=(s,label)=>slots[s]?`<div class="lookrow"><small>${label}</small><div class="sw" data-s="${s}"><button class="def${look[s]?'':' on'}" data-c="" aria-label="As drawn">↺</button>${LOOK_SW[s].map(c=>`<button style="background:${c}" data-c="${c}" class="${look[s]===c?'on':''}" aria-label="${c}"></button>`).join('')}</div></div>`:'';
-  box.innerHTML=`<div class="lookhead"><div class="pv"></div><div><b>${h.n}</b><div class="what">Pick their colours.</div></div></div>${row('skin','Skin')}${row('hair','Hair')}${row('a',LOOK_ROWS[k].a)}${row('b',LOOK_ROWS[k].b||'')}<button class="b go lookdone" data-done="1">Done</button>`;
+  box.innerHTML=`<div class="lookhead"><div class="pv"></div><div><b>Customize the ${h.n}</b></div></div>${row('skin','Skin')}${row('hair','Hair')}${row('a',LOOK_ROWS[k].a)}${row('b',LOOK_ROWS[k].b||'')}<button class="b go lookdone" data-done="1">Done</button>`;
   const pv=()=>{const i=icon3d('h-'+k,88,112);lookIcon(k,i);box.querySelector('.pv').replaceChildren(i)};pv();
   box.onclick=e=>{if(e.target.closest('[data-done]'))return closeLook();const b=e.target.closest('.sw button');if(!b)return;const s=b.parentNode.dataset.s,lk=S.look[k]||(S.look[k]={});
     if(b.dataset.c)lk[s]=b.dataset.c;else delete lk[s];if(!Object.keys(lk).length)delete S.look[k];
@@ -737,19 +740,19 @@ $('#lookbg').addEventListener('click',e=>{if(e.target.id==='lookbg')closeLook()}
 const icon3d=(name,w,h)=>{const i=new Image(w,h);i.className='ico3d';i.alt='';i.draggable=false;i.src='art/icons/'+name+'.png';return i};
 function portrait(h){const i=icon3d('h-'+h.k,44,56);lookIcon(h.k,i);return i}
 function buildCards(){const box=$('#cards');box.innerHTML='';for(const h of HEROES){if(place(h)!==(S.view||'mine'))continue;const el=document.createElement('div');el.className='card';el.dataset.k=h.k;
-  el.innerHTML=`<div class="pic"></div><div><div><b>${h.n}</b><span class="lv"></span></div><div class="what"></div><div class="next"></div></div><div class="buy"><button class="b go" data-buy="${h.k}"></button></div>`;
+  el.innerHTML=`<div class="pic"></div><div class="line"><b>${h.n}</b><span class="lv"></span><span class="what"></span></div><div class="buy"><button class="b go" data-buy="${h.k}"></button></div>`;
   el.querySelector('.pic').appendChild(portrait(h));box.appendChild(el)}refreshCards()}
 function revealCheck(){for(const pl of ['mine','forge']){if(pl==='forge'&&!S.forge)continue;for(const h of HEROES){if(place(h)!==pl||S.seen[h.k])continue;if(h.req&&h.req()){S.seen[h.k]=1;toast(`Someone new came to the ${pl}: the ${h.n}`);save();refreshCards()}break}}}
 function refreshCards(){let shownLocked=false;
   for(const h of HEROES){const el=document.querySelector(`.card[data-k="${h.k}"]`);if(!el)continue;const L=lv(h.k),seen=S.seen[h.k];
-    if(!seen){if(shownLocked){el.style.display='none';continue}shownLocked=true;el.style.display='';el.className='card locked';el.querySelector('b').textContent='???';el.querySelector('.lv').textContent='';el.querySelector('.what').textContent=h.hint;el.querySelector('.next').textContent='';el.querySelector('.buy').style.display='none';el.querySelector('.pic').style.visibility='hidden';continue}
+    if(!seen){if(shownLocked){el.style.display='none';continue}shownLocked=true;el.style.display='';el.className='card locked';el.querySelector('b').textContent='???';el.querySelector('.lv').textContent='';el.querySelector('.what').textContent=h.hint;el.querySelector('.buy').style.display='none';el.querySelector('.pic').style.visibility='hidden';continue}
     el.style.display='';el.querySelector('.pic').style.visibility='';el.querySelector('.buy').style.display='';el.querySelector('b').textContent=h.n;
     el.className='card'+(L?'':' fresh')+(L&&LOOK_LAYER[h.k]&&atlas&&atlas.slots?' cust':'');
     el.querySelector('.lv').textContent=L?`Lv ${L}`:'';
-    el.querySelector('.what').textContent=L?h.what():place(h)==='forge'?`Waiting at the forge door. Hire them to start work.`:`Waiting at the mine mouth. Hire them to open their spot.`;
-    el.querySelector('.next').textContent=L?h.ms(L):'';
+    el.querySelector('.what').textContent=L?h.what():'';
+    
     const n=1,c=costN(h.k,n),b=el.querySelector('button');
-    b.textContent=L?`Level up${n>1?' ×'+n:''} · ${fmtN(c)}`:`Hire · ${fmtN(c)}`;b.disabled=S.ore<c}}
+    b.textContent=L?`▲ ${fmtN(c)}`:`Hire · ${fmtN(c)}`;b.setAttribute('aria-label',(L?'Level up, ':'Hire, ')+fmtN(c)+' ore');b.disabled=S.ore<c}}
 function buy(k){const L=lv(k),n=1,c=costN(k,n);if(S.ore<c)return;S.ore-=c;const before=msCount(L);S.h[k]=L+n;
   const st=k==='smith'&&STATIONS.find(x=>x.lv===L+n);
   if(!L)toast(`The ${HK[k].n} got to work`);
