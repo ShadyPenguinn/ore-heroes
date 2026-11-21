@@ -423,7 +423,8 @@ function drawTrack(){const on=S.forge&&S.view==='forge';$('#ftrack').style.displ
   const fa=$('#fact'),q=F&&!F.done&&F.res.length;fa.textContent=F?'Quench':S.ore<ore&&ks.length?'Need ore':'Heat';fa.disabled=F?!q:(S.ore<ore||!ks.length);
   const fc=$('#fcost');fc.textContent=ks.length&&!F?`${fmtN(ore)} ore`:'';fc.classList.toggle('short',!F&&S.ore<ore);
   // idle: the circles scroll, the highest five in view; forging: struck ones slide off to the left once three are done
-  const box=$('#fpipbox'),pk=!F;const keep=()=>{box.scrollLeft=n>L-5?1e6:Math.max(0,(n-5)*38)}; // the picked circle in view, at the right if it isn't among the top five
+  const box=$('#fpipbox'),pk=!F;// the picked circle slides to the middle of the five (as far as the row allows: the top ones stay at the right, the low ones at the left)
+  const keep=()=>{const x=Math.max(0,Math.min(box.scrollWidth-box.clientWidth,(n-3)*38));if(box.dataset.L)box.scrollTo({left:x,behavior:'smooth'});else box.scrollLeft=x};
   if(box.classList.contains('pickf')!==pk){box.classList.toggle('pickf',pk);if(pk)keep();else box.scrollLeft=0}
   if(pk){$('#fpips').style.transform='';if(box.dataset.L!==L+'/'+n&&box.clientWidth){box.dataset.L=L+'/'+n;keep()}}
   else{const vis=Math.max(2,Math.floor((box.clientWidth+6)/38-.1));$('#fpips').style.transform=`translateX(${-Math.max(0,Math.min(res.length,n-1)-(vis-1))*38}px)`}}
