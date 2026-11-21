@@ -151,7 +151,7 @@ img.ico3d{image-rendering:auto!important;object-fit:contain}
       <div class="chip" id="wchip" style="display:none"><small>Forged</small><b id="wpns">0</b></div>
     </div>
     <div class="places" id="places"><button class="b sm on" data-v="mine">Mine</button><button class="b sm" data-v="forge">Forge</button><button class="b sm" data-v="army" style="display:none">Army</button><button class="b sm" data-v="explore" style="display:none">Explore</button></div>
-    <div class="scene" id="scene"><canvas id="bd" width="480" height="210" aria-hidden="true"></canvas><canvas id="cv" width="960" height="420"></canvas><div class="taphint" id="taphint">Tap the rock</div><div class="fresult" id="fresult"></div><div class="fresult" id="xresult"></div><div class="fvore"><small>Ore</small><span id="fvore">0</span></div><div class="fvturn">Turn sideways for the biggest view</div><button class="fvbtn" id="fvbtn" aria-label="Full view"></button></div>
+    <div class="scene" id="scene"><canvas id="bd" width="480" height="210" aria-hidden="true"></canvas><canvas id="cv" width="960" height="420"></canvas><div class="taphint" id="taphint">Click the rock</div><div class="fresult" id="fresult"></div><div class="fresult" id="xresult"></div><div class="fvore"><small>Ore</small><span id="fvore">0</span></div><div class="fvturn">Turn sideways for the biggest view</div><button class="fvbtn" id="fvbtn" aria-label="Full view"></button></div>
     <div class="ftrack" id="ftrack" style="display:none"><div class="ftop"><div class="fpips" id="fpipbox"><div class="fpipsin" id="fpips"></div></div><button class="b go fact" id="fact">Heat</button><span class="fstars" id="fstars"></span></div><div class="track idle" id="track"><div class="zone" id="zone"><i></i></div><div class="marker" id="marker"></div><div class="sparks" id="sparks"></div><div class="tlabel" id="tlabel"></div></div></div>
   </div>
   <section class="panel apanel" id="apanel" style="display:none"></section>
@@ -183,16 +183,18 @@ const MS=[25,50,100]; // first doubling at 25 (was 10): keeps the early mine sma
 const msCount=lv=>MS.filter(m=>lv>=m).length+(lv>=150?Math.floor((lv-100)/50):0);
 const nextMs=lv=>{for(const m of MS)if(lv<m)return m;return 100+50*(Math.floor((lv-100)/50)+1)};
 const TOOLS=['Copper','Iron','Steel','Moonsilver','Starmetal'];
+// the word for pressing: 'click' everywhere for now; a phone build can set it to 'tap' (Jonathan, Nov 21)
+const TAP='click',Tap=TAP[0].toUpperCase()+TAP.slice(1),TAPPING=TAP==='tap'?'tapping':TAP+'ing';
 const HEROES=[
   {k:'miner',n:'Miner',base:10,
-    what:()=>`+${fmtN(minerTap())}/tap`,
-    desc:()=>`Swings his pick every time you tap, for +${fmtN(minerTap())} ore a tap.`,
-    ms:lv=>`Level ${nextMs(lv)}: ${TOOLS[Math.min(4,msCount(lv)+1)]} pick, double ore per tap`},
+    what:()=>`+${fmtN(minerTap())}/${TAP}`,
+    desc:()=>`Swings his pick every time you ${TAP}, for +${fmtN(minerTap())} ore a ${TAP}.`,
+    ms:lv=>`Level ${nextMs(lv)}: ${TOOLS[Math.min(4,msCount(lv)+1)]} pick, double ore per ${TAP}`},
   {k:'carter',n:'Carter',base:100,
     what:()=>`+${fmtN(carterRate()*TRIP/timeSpeed())}/trip`,
     desc:()=>`Rides the cart into the tunnel and back, bringing ${fmtN(carterRate()*TRIP/timeSpeed())} ore a trip.`,
     ms:lv=>`Level ${nextMs(lv)}: ${['greased wheels','a bigger cart','a second cart','iron rails'][Math.min(3,msCount(lv))]}, double loads`,
-    req:()=>lv('miner')>=5&&S.taps>=25, hint:'The Miner is getting the hang of it. Keep tapping and level the Miner.'},
+    req:()=>lv('miner')>=5&&S.taps>=25, hint:`The Miner is getting the hang of it. Keep ${TAPPING} and level the Miner.`},
   {k:'phantom',n:'Phantom Miner',base:1000,
     what:()=>`+${fmtN(phantomRate())}/s`,
     desc:()=>`A ghost miner who still works the rock, digging ${fmtN(phantomRate())} ore a second.`,
@@ -200,15 +202,15 @@ const HEROES=[
     req:()=>lv('carter')>=5&&lv('miner')>=10, hint:'Something stirs in the dark. Level the Carter and the Miner.'},
   {k:'prospector',n:'Prospector',base:8000,
     what:()=>`+${fmtN(prospTap())}/hit`,
-    desc:()=>`Swings beside the Miner every time you tap, for +${fmtN(prospTap())} ore a swing.`,
+    desc:()=>`Swings beside the Miner every time you ${TAP}, for +${fmtN(prospTap())} ore a swing.`,
     ms:lv=>`Level ${nextMs(lv)}: ${TOOLS[Math.min(4,msCount(lv)+1)]} pick, double ore`,
-    req:()=>lv('phantom')>=5&&S.taps>=400, hint:'Someone is watching how you swing. Keep tapping, and level the Phantom Miner.'},
+    req:()=>lv('phantom')>=5&&S.taps>=400, hint:`Someone is watching how you swing. Keep ${TAPPING}, and level the Phantom Miner.`},
   // the Foreman (Jonathan, Nov 19): tells the Miner to swing on a timer, tapping or not. 10 s at level 1, shorter every level, no floor.
   {k:'foreman',n:'Foreman',base:25000,
     what:()=>foremanShort(),
     desc:()=>`Blows his whistle to make the Miner swing ${foremanText()}.`,
     ms:lv=>`Level ${nextMs(lv)}: ${['a louder whistle','a pocket watch that runs fast','a megaphone','a brass band'][Math.min(3,msCount(lv))]}, twice as many swings`,
-    req:()=>lv('prospector')>=5&&S.taps>=1000, hint:'Your arm is getting tired. Keep tapping, and level the Prospector.'},
+    req:()=>lv('prospector')>=5&&S.taps>=1000, hint:`Your arm is getting tired. Keep ${TAPPING}, and level the Prospector.`},
   {k:'blaster',n:'Blaster',base:400000,
     what:()=>`+${fmtN(blasterRate()*BLAST/timeSpeed())}/blast`,
     desc:()=>`Lights a fuse every ${Math.round(BLAST/timeSpeed()*10)/10} s, for ${fmtN(blasterRate()*BLAST/timeSpeed())} ore a blast.`,
@@ -296,7 +298,7 @@ const itemById=id=>S.inv.find(x=>x.id===id);
 const holderOf=id=>S.heroes.findIndex(h=>h.eq===id);
 const HNAMES=['Bran','Ilse','Torvald','Wren','Osric','Maren','Edda','Rook','Sable','Corin','Hale','Tamsin','Ulric','Nell','Garrick','Brisa'];
 function recruit(){const used=S.heroes.map(h=>h.n),n=HNAMES.find(x=>!used.includes(x))||('Hero '+(S.heroes.length+1));S.heroes.push({n,eq:null});return n}
-function openArmy(){S.army=1;const n=recruit();S.sel=0;save();setPlaces();toast(`A wandering hero heard about your smithing: ${n} has joined you. Tap Army.`)}
+function openArmy(){S.army=1;const n=recruit();S.sel=0;save();setPlaces();toast(`A wandering hero heard about your smithing: ${n} has joined you. ${Tap} Army.`)}
 const HK=Object.fromEntries(HEROES.map(h=>[h.k,h]));
 const TRIP=6,PHANTOM_EVERY=1.2,BLAST=20;
 let S;
@@ -406,7 +408,7 @@ function drawTrack(){const on=S.forge&&S.view==='forge';$('#ftrack').style.displ
   for(let i=0;i<n;i++){const r=res[i];if(r==='P')st++;else st=0;h+=`<span class="pip ${r==='P'?'p':r==='G'?'g':r?'m':''}${F&&i===res.length&&!F.done?' now':''}">${r==='P'?perfectStars(st):r==='G'?'1':r?'✕':i+1}</span>`}
   $('#fpips').innerHTML=h;
   const ks=known(),ore=blankCost(n);
-  $('#tlabel').textContent=F?'':!ks.length?`The Blacksmith learns Swords at level ${SWORD_LV}`:S.ore<ore?`Need ${fmtN(ore)} ore. Dig in the Mine.`:`Tap to heat a ${n}-Fold ${WEAP[S.pick.w].n} blank (${fmtN(ore)} ore)`;
+  $('#tlabel').textContent=F?'':!ks.length?`The Blacksmith learns Swords at level ${SWORD_LV}`:S.ore<ore?`Need ${fmtN(ore)} ore. Dig in the Mine.`:`${Tap} to heat a ${n}-Fold ${WEAP[S.pick.w].n} blank (${fmtN(ore)} ore)`;
   const sc=F?scoreOf(F.res):0;$('#fstars').textContent=F?`★${sc} ${GR[gradeOf(sc)].n}`:'';
   const msg=F?(F.res.length?F.msg:''):lastResult,fr=$('#fresult');if(msg)fr.textContent=msg;fr.classList.toggle('on',!!msg);
   const fa=$('#fact'),q=F&&!F.done&&F.res.length;fa.textContent=F?'Quench':S.ore<ore&&ks.length?'Need ore':'Heat';fa.disabled=F?!q:(S.ore<ore||!ks.length);
@@ -438,7 +440,7 @@ function popAt(at,txt,col){if(S.view==='forge')pops.push({x:at[0],y:at[1],txt,t:
 // the Swordsmith hones his blade, and every so often stops to read up on swords
 let studyT=6;
 function forgeLogic(dt){if(!S.forge)return;forgeTick(dt);if(lv('swordsmith')&&A.sword&&A.sword.seg==='idle'&&(studyT-=dt)<=0){studyT=7+Math.random()*6;A.sword.play('study');if(window.F3D)F3D.act('sword','study')}}
-function openForge(){S.forge=1;S.h.smith=S.h.smith||1;S.seen.smith=1;save();buildCards();setPlaces();toast('With the Foreman keeping the Miner swinging, you can go to the forge. Tap Forge.')}
+function openForge(){S.forge=1;S.h.smith=S.h.smith||1;S.seen.smith=1;save();buildCards();setPlaces();toast(`With the Foreman keeping the Miner swinging, you can go to the forge. ${Tap} Forge.`)}
 
 // automatic heroes run on their own clocks so the ore arrives in visible trips, strikes, calls and blasts
 const acc={carter:0,phantom:0,blaster:0,foreman:0,beat:0,lamp:0,time:0};
@@ -479,7 +481,7 @@ function draw(dt){
   const L=lv('lamp');for(const g of LANTERNS)glow(g.x,g.y,22+Math.min(14,L*.6),'255,190,90',.1+Math.min(.25,.03*L)+.03*Math.sin(clock*2+g.x));
   const nx=nextHero(),isNext=k=>!!(nx&&nx.k===k&&S.seen[k]);
   // back to front
-  if(lv('phantom')){A.phantom.draw();glow(SPOT.phantom.hit[0]-10,SPOT.phantom.hit[1]-12,26,'138,255,224',.12+.05*Math.sin(clock*3))}else waitingSpot(SPOT.phantom.sign,isNext('phantom'));
+  if(lv('phantom')){A.phantom.draw();glow(SPOT.phantom.hit[0]-10,SPOT.phantom.hit[1]-12,26,ghostTint().rgb,.12+.05*Math.sin(clock*3))}else waitingSpot(SPOT.phantom.sign,isNext('phantom'));
   if(L)A.lamp.draw();else waitingSpot(SPOT.lamp.sign,isNext('lamp'));
   if(L&&A.lamp.seg==='reach')glow(306,58,14,'255,210,120',.35);
   if(lv('prospector'))A.pros.draw();else waitingSpot(SPOT.pros.sign,isNext('prospector'));
@@ -506,7 +508,7 @@ function drawMine3D(dt){const D=M3D,a=D.anchors;mineDrawn=true;
     cart:lv('carter')?acc.carter/TRIP:null,lamp:L,fuse:Math.min(1,acc.blaster/BLAST),boomT,shake});
   if(shake>0)shake=Math.max(0,shake-dt);
   const nx=nextHero(),isNext=k=>!!(nx&&nx.k===k&&S.seen[k]);
-  if(lv('phantom'))glow(a.phantom.glow[0],a.phantom.glow[1],26,'138,255,224',.1+.05*Math.sin(clock*3));
+  if(lv('phantom'))glow(a.phantom.glow[0],a.phantom.glow[1],26,ghostTint().rgb,.1+.05*Math.sin(clock*3));
   for(const [k,sp] of [['phantom','phantom'],['lamp','lamp'],['prospector','pros'],['foreman','foreman'],['carter','carter'],['blaster','blaster'],['time','time']])if(!lv(k))waitingSpot(a[sp].sign,isNext(k));
   if(lv('blaster')){if(boomT<.35){const k=boomT/.35;glow(a.blaster.hit[0],a.blaster.hit[1]-6,10+46*k,'255,230,170',1-k)}boomT+=dt}
   if(lv('time'))glow(a.time.glow[0],a.time.glow[1],26,'184,154,255',.12+(A.time.seg==='turn'?.15:0));
@@ -580,7 +582,7 @@ function iconBox(it){const d=document.createElement('div');d.className='ic';d.st
 function refreshArmy(){const on=S.army&&S.view==='army';$('#apanel').style.display=on?'':'none';if(!on)return;const P=$('#apanel'),h=S.heroes[S.sel]||S.heroes[0];if(!h)return;
   const cur=h.eq&&itemById(h.eq);
   if(amode==='hero'){
-    P.innerHTML=`<div class="ahead"><div class="grow"><h3>${h.n}</h3><span class="note">${S.heroes.length>1?`Hero ${S.sel+1} of ${S.heroes.length} · tap a hero to switch`:'Your first hero'}</span></div></div>`+
+    P.innerHTML=`<div class="ahead"><div class="grow"><h3>${h.n}</h3><span class="note">${S.heroes.length>1?`Hero ${S.sel+1} of ${S.heroes.length} · ${TAP} a hero to switch`:'Your first hero'}</span></div></div>`+
       (cur?`<div class="aw" id="acur"><div class="grow"><b style="color:${GCOL[cur.g]}">${wTitle(cur)}</b> <span class="note">★${cur.stars} · Power ${fmtN(wPower(cur))}</span></div></div>${statGrid(cur)}<div class="row"><button class="b go" data-a="pick">Change weapon</button><button class="b" data-a="unequip">Unequip</button>${S.sel>0?'<button class="b" data-a="fwd">Move to front</button>':''}</div>`
           :`<p class="note">Nothing equipped yet.</p><div class="row"><button class="b go" data-a="pick" ${S.inv.length?'':'disabled'}>Equip</button></div>`);
     if(cur)P.querySelector('#acur').prepend(iconBox(cur));
@@ -703,6 +705,10 @@ const hexRgb=h=>[1,3,5].map(i=>parseInt(h.slice(i,i+2),16)).join(',');
    The mine art is drawn from a fixed palette, and art/mine-slots.png marks which pixels are skin (60), hair (120), the main outfit (180)
    or the second outfit (240), with mine.json's "slots" giving each hero's own shades for them. Changing a colour swaps those shades for
    a ramp built from the pick, scaled shade by shade, so light and shadow stay as drawn. Portraits get the same swap. */
+// the Phantom Miner's glow, sparks and ore numbers follow the colour picked for him
+function ghostTint(){const c=S.look&&S.look.phantom&&S.look.phantom.a;if(!c)return{rgb:'138,255,224',spark:'#8affe0',pop:'#b8fff0'};
+  const v=hx(c),m=Math.max(...v,1),b=v.map(x=>Math.round(255*x/m)),l=b.map(x=>Math.round(x+(255-x)*.55));
+  return{rgb:b.join(','),spark:'rgb('+b.join(',')+')',pop:'rgb('+l.join(',')+')'}}
 const LOOK_LAYER={miner:'miner',prospector:'pros',carter:'cart',phantom:'phantom',foreman:'boss',blaster:'blast',lamp:'lamp',time:'time'};
 const LOOK_ROWS={miner:{a:'Shirt',b:'Trousers'},prospector:{a:'Shirt',b:'Hat and leathers'},carter:{a:'Shirt',b:'Cap and trousers'},phantom:{a:'Glow'},
   foreman:{a:'Suit',b:'Waistcoat'},blaster:{a:'Shirt',b:'Vest'},lamp:{a:'Coat',b:'Hat and trousers'},time:{a:'Robe',b:'Magic'}};
@@ -717,23 +723,37 @@ const hx=h=>[1,3,5].map(i=>parseInt(h.slice(i,i+2),16)),lum=c=>.3*c[0]+.59*c[1]+
 function lookRamp(def,pick){const D=def.map(hx),ref=D[Math.round((D.length-1)*.75)],P=hx(pick),k=D.map(d=>lum(d)/Math.max(1,lum(ref)));
   return{D,T:k.map(f=>P.map(v=>Math.min(255,v*f)))}}
 function lookPixel(R,d,o){let bi=0,bd=1e9;for(let i=0;i<R.D.length;i++){const q=R.D[i],e=(d[o]-q[0])**2+(d[o+1]-q[1])**2+(d[o+2]-q[2])**2;if(e<bd){bd=e;bi=i}}
-  const q=R.D[bi],t=R.T[bi];for(let c=0;c<3;c++)d[o+c]=Math.max(0,Math.min(255,Math.round(t[c]*(d[o+c]+4)/(q[c]+4))))}
+  // keep the pixel's shade (its brightness against the ramp step it matches) with only a little of its tint, so a weak channel in
+  // the ramp (the ghost's red, say) can't blow up into stray colours
+  const q=R.D[bi],t=R.T[bi],lr=(lum([d[o],d[o+1],d[o+2]])+4)/(lum(q)+4);
+  for(let c=0;c<3;c++){const f=lr*Math.max(.85,Math.min(1.18,((d[o+c]+4)/(q[c]+4))/lr));d[o+c]=Math.max(0,Math.min(255,Math.round(t[c]*f)))}
+  return bd}
 // recolour pixels: src (original), dst (to write), mask, the hero's look and slots
-function lookPaint(src,dst,mask,n0,n1,W,box,look,slots){const R=SLOTK.map(s=>look&&look[s]&&slots[s]?lookRamp(slots[s],look[s]):null);
+// colours the slot mask covers in most places: a pixel of that exact colour the mask missed (a dithered or shifted edge) still counts
+function lookFallback(src,mask,W,boxes){const cnt=new Map();
+  for(const [x0,y0,w,h] of boxes)for(let y=y0;y<y0+h;y++)for(let x=x0;x<x0+w;x++){const o=(y*W+x)*4;if(!src[o+3])continue;
+    const key=(src[o]<<16)|(src[o+1]<<8)|src[o+2],m=mask[o]?Math.round(mask[o]/60):0;let c=cnt.get(key);if(!c)cnt.set(key,c=[0,0,0,0,0]);c[m]++}
+  const fb=new Map();for(const [key,c] of cnt){let bi=0;for(let i=1;i<5;i++)if(c[i]>c[bi])bi=i;if(bi&&c[bi]>=c[0])fb.set(key,bi)}return fb}
+function lookPaint(src,dst,mask,n0,n1,W,box,look,slots,fb){const R=SLOTK.map(s=>look&&look[s]&&slots[s]?lookRamp(slots[s],look[s]):null);
   const [x0,y0,w,h]=box;for(let y=y0;y<y0+h;y++)for(let x=x0;x<x0+w;x++){const o=(y*W+x)*4;dst[o]=src[o];dst[o+1]=src[o+1];dst[o+2]=src[o+2];dst[o+3]=src[o+3];
-    const m=mask[o],r=m?R[Math.round(m/60)-1]:null;if(r&&src[o+3])lookPixel(r,dst,o)}}
+    if(!src[o+3])continue;const m=mask[o],r=m?R[Math.round(m/60)-1]:null;if(r){lookPixel(r,dst,o);continue}
+    // a pixel the mask missed (a dithered or blended edge) but drawn in a changed slot's colours still takes that slot's colour
+    if(!m&&fb){const i=fb.get((src[o]<<16)|(src[o+1]<<8)|src[o+2]),q=i?R[i-1]:null;if(q)lookPixel(q,dst,o)}}}
 function lookInit(img,sl){const W=img.width,H=img.height;lookCv=document.createElement('canvas');lookCv.width=W;lookCv.height=H;lookCtx=lookCv.getContext('2d',{willReadFrequently:true});
   lookCtx.drawImage(sl,0,0);lookMask=lookCtx.getImageData(0,0,W,H).data;lookCtx.clearRect(0,0,W,H);lookCtx.drawImage(img,0,0);lookWork=lookCtx.getImageData(0,0,W,H);lookOrig=new Uint8ClampedArray(lookWork.data)}
+const lookFb={};
 function lookApply(k){const L=LOOK_LAYER[k];if(!lookCv||!L||!atlas.slots||!atlas.slots[L])return;const look=(S.look||{})[k],W=lookCv.width;
-  for(const [n,s] of Object.entries(atlas.sprites)){if(!n.startsWith(L+'-'))continue;const box=[s[0],s[1],s[2],s[3]];
-    lookPaint(lookOrig,lookWork.data,lookMask,0,0,W,box,look,atlas.slots[L]);lookCtx.putImageData(lookWork,0,0,box[0],box[1],box[2],box[3])}}
+  const boxes=Object.entries(atlas.sprites).filter(([n])=>n.startsWith(L+'-')).map(([n,s])=>[s[0],s[1],s[2],s[3]]);
+  const fb=lookFb[L]||(lookFb[L]=lookFallback(lookOrig,lookMask,W,boxes));
+  for(const box of boxes){
+    lookPaint(lookOrig,lookWork.data,lookMask,0,0,W,box,look,atlas.slots[L],fb);lookCtx.putImageData(lookWork,0,0,box[0],box[1],box[2],box[3])}}
 // a portrait with the hero's look: drawn into a canvas and handed back as the image's source
 const lookIconCache={};
 function lookIcon(k,el){const L=LOOK_LAYER[k],look=(S.look||{})[k];if(!L||!look||!Object.keys(look).length)return;
   lookReady.then(()=>{if(!atlas||!atlas.slots||!atlas.slots[L])return;const key=k+JSON.stringify(look);if(lookIconCache[key]){el.src=lookIconCache[key];return}
     Promise.all([pic('art/icons/h-'+k+'.png'),pic('art/icons/h-'+k+'.slots.png')]).then(([im,sm])=>{const c=document.createElement('canvas'),W=c.width=im.width,H=c.height=im.height,x=c.getContext('2d',{willReadFrequently:true});
       x.drawImage(sm,0,0);const mask=x.getImageData(0,0,W,H).data;x.clearRect(0,0,W,H);x.drawImage(im,0,0);const d=x.getImageData(0,0,W,H),src=new Uint8ClampedArray(d.data);
-      lookPaint(src,d.data,mask,0,0,W,[0,0,W,H],look,atlas.slots[L]);x.putImageData(d,0,0);el.src=lookIconCache[key]=c.toDataURL()}).catch(()=>{})})}
+      lookPaint(src,d.data,mask,0,0,W,[0,0,W,H],look,atlas.slots[L],lookFallback(src,mask,W,[[0,0,W,H]]));x.putImageData(d,0,0);el.src=lookIconCache[key]=c.toDataURL()}).catch(()=>{})})}
 function openLook(k){const h=HEROES.find(q=>q.k===k),L=LOOK_LAYER[k],slots=atlas.slots&&atlas.slots[L];if(!slots)return;
   const look=(S.look||(S.look={}))[k]||{},box=$('#lookbox');
   const row=(s,label)=>slots[s]?`<div class="lookrow"><div class="sw" data-s="${s}"><button class="def${look[s]?'':' on'}" data-c="" aria-label="As drawn">↺</button>${LOOK_SW[s].map(c=>`<button style="background:${c}" data-c="${c}" class="${look[s]===c?'on':''}" aria-label="${c}"></button>`).join('')}</div></div>`:'';
@@ -805,10 +825,10 @@ $('#fpanel').addEventListener('click',e=>{const t=e.target.closest('button');if(
 function setPlaces(){$('#places').classList.toggle('on',!!S.forge);$('#res').classList.toggle('three',!!S.forge);$('#wchip').style.display=S.forge?'':'none';
   if(!S.forge)S.view='mine';if(!S.army&&S.view==='army')S.view='mine';if(!S.explore&&S.view==='explore')S.view='mine';$('#places').classList.toggle('three',!!S.army&&!S.explore);$('#places').classList.toggle('four',!!S.explore);$('[data-v=army]').style.display=S.army?'':'none';$('[data-v=army]').classList.toggle('dot',!!S.armyNew&&S.view!=='army');if(S.view==='army')S.armyNew=0;$('[data-v=explore]').style.display=S.explore?'':'none';
   for(const b of $('#places').children)b.classList.toggle('on',b.dataset.v===S.view);refreshArmy();refreshExplore();
-  const done=S.view==='forge'?fhintGone:hintGone;$('#taphint').textContent=S.view==='forge'?'Tap to heat a blank, then strike':'Tap the rock';refreshForge();$('#taphint').style.opacity=done||S.view==='army'||S.view==='explore'?0:1}
+  const done=S.view==='forge'?fhintGone:hintGone;$('#taphint').textContent=S.view==='forge'?`${Tap} to heat a blank, then strike`:`${Tap} the rock`;refreshForge();$('#taphint').style.opacity=done||S.view==='army'||S.view==='explore'?0:1}
 $('#places').addEventListener('click',e=>{const b=e.target.closest('[data-v]');if(!b||!S.forge||b.dataset.v===S.view)return;slide={from:S.view,t:0};S.view=b.dataset.v;amode='hero';pops.length=0;parts.length=0;setPlaces();buildCards();save()});
 let resetArm=false;
-$('#reset').onclick=()=>{if(!resetArm){resetArm=true;$('#reset').textContent='Tap again to erase this save';setTimeout(()=>{resetArm=false;$('#reset').textContent='Start over'},3000);return}S=fresh();save();setPlaces();buildCards();toast('A fresh mine')};
+$('#reset').onclick=()=>{if(!resetArm){resetArm=true;$('#reset').textContent=`${Tap} again to erase this save`;setTimeout(()=>{resetArm=false;$('#reset').textContent='Start over'},3000);return}S=fresh();save();setPlaces();buildCards();toast('A fresh mine')};
 $('#savefile').onclick=async()=>{S.lastBackup=Date.now();save();const d=new Date(),name=`ore-heroes-save-${d.toISOString().slice(0,10)}.json`,blob=new Blob([JSON.stringify({game:'ore-heroes',v:1,saved:d.toISOString(),S})],{type:'application/json'}),file=new File([blob],name,{type:'application/json'});
   try{if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],title:'Ore Heroes save'});return}}catch(e){if(e&&e.name==='AbortError')return}
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000)};
@@ -834,7 +854,7 @@ Promise.all([fetch('art/mine.json').then(r=>r.json()),pic('art/mine.png'),fetch(
   {const b=a.sprites.bg,bd=$('#bd').getContext('2d');bd.drawImage(i,b[0],b[1],b[2],b[3],0,0,480,210)}
   atlas=a;lookReady=mineSlots.then(sl=>{if(sl&&a.slots){lookInit(i,sl);img=lookCv;for(const k in S.look||{})lookApply(k);buildCards()}});img=i;fatlas=fa;fimg=fi;aatlas=aa;aimg=ai;xatlas=xa;ximg=xi;
   A.miner=new Actor('miner',e=>{if(e==='strike')minerLanded()});A.pros=new Actor('pros',e=>{if(e==='strike')prospLanded()});
-  A.phantom=new Actor('phantom',e=>{if(e==='strike'){gain(phantomRate()*PHANTOM_EVERY,SPOT.phantom.pop,'#b8fff0');burst(SPOT.phantom.hit,6,['#8affe0','#d88038','#f0b070'],.7)}});
+  A.phantom=new Actor('phantom',e=>{if(e==='strike'){const g=ghostTint();gain(phantomRate()*PHANTOM_EVERY,SPOT.phantom.pop,g.pop);burst(SPOT.phantom.hit,6,[g.spark,'#d88038','#f0b070'],.7)}});
   A.boss=new Actor('boss');A.blast=new Actor('blast');A.lamp=new Actor('lamp');A.time=new Actor('time');
   A.smith=new Actor('smith',null,true);A.fire=new Actor('fire',null,true);
   for(const st of STATIONS)A[st.w]=new Actor(st.w,null,true);
