@@ -84,6 +84,7 @@ module.exports = (S, K, B, C) => {
       ball(F, at(s * 0.122, -0.015, -0.01), [0.02, 0.034, 0.024], SK, tag, 0.004, G); // ears
       if (o.eyes === 'squint') tube(F, [at(s * 0.065, 0.003, 0.112), at(s * 0.025, 0.003, 0.12)], 0.007, 0.007, M.flat(C.eye), tag, 0.002);
       else {
+        ball(F, at(s * 0.045, 0.003, 0.107), [0.021, 0.019, 0.01], M.flat([C.grey[2], C.grey[3]]), tag, 0.002); // the white of the eye
         ball(F, at(s * 0.045, 0.003, 0.112), [0.016, 0.019, 0.01], M.flat(C.eye), tag, 0.002);
         ball(F, at(s * 0.04, 0.01, 0.121), 0.005, M.flat([C.eyeLight]), tag, 0.0015);
       }
@@ -134,10 +135,10 @@ module.exports = (S, K, B, C) => {
     const tag = o.tag, head = [tip[0], tip[1] + 0.2, tip[2]], back = [tip[0] - 0.02, tip[1] + 0.4, tip[2]];
     tube(F, [grip, [head[0], head[1] - 0.02, head[2]]], 0.016, 0.019, o.wood || M.wood(C.wood), tag, 0.005);
     ball(F, grip, 0.02, o.wood || M.wood(C.wood), tag, 0.005);
-    box(F, head, [0.034, 0.04, 0.034], M.metal(C.iron), tag, 0.004, null, 0.008);
+    box(F, head, [0.034, 0.04, 0.034], o.eye || M.metal(C.iron), tag, 0.004, null, 0.008);
     tube(F, [head, [back[0], back[1] - 0.06, back[2]], back], 0.03, 0.014, o.iron || M.metal(C.iron), tag, 0.004);
     tube(F, [head, lerp(head, tip, 0.5), tip], 0.03, 0.005, o.iron || M.metal(C.iron), tag, 0.004);
-    ball(F, tip, 0.008, M.flat([C.iron[3]]), tag, 0.003);
+    ball(F, tip, 0.008, o.tipM || M.flat([C.iron[3]]), tag, 0.003);
     return head;
   }
 
@@ -211,12 +212,18 @@ module.exports.COLOURS = [
   0xe8e0d0, 0xfff8ec, // 85 wax, 86 feather tip
   0x1e7a70, 0x5ae0c8, 0xc8fff4, 0x0a3a36, // 87 phantom glow
   0x9ac8e0, 0xe0f4ff, // 91 lens
-  0x2a1810, 0x4a3020, 0x6e4a32 // 93 dark hair
+  0x2a1810, 0x4a3020, 0x6e4a32, // 93 dark hair
+  0x3a2010, 0x6a4026, 0x96633e, 0xbc8858, 0xdcab78, // 96 tan skin
+  0x1a0c06, 0x341a0e, 0x55301c, 0x7a4a2e, 0x9c6a48, // 101 deep brown skin
+  0x2a140a, 0x4e2a16, 0x784626, 0x9e663c, 0xc08a5a, // 106 brown skin
+  0x7a5236, 0xa87a52, 0xd0a074, 0xe8c094, 0xf8dcb8, // 111 light warm skin
+  0x08080a, 0x141418, 0x24242a, 0x3a3a42 // 116 black hair
 ];
 module.exports.palette = b => {
   const r = (a, n) => [...Array(n)].map((_, i) => b + a + i);
   return { skin: r(0, 5), cheek: r(5, 3), beard: r(8, 5), shirt: r(13, 5), trous: r(18, 4), leather: r(22, 4), boot: r(26, 4), brass: r(30, 4),
     iron: r(34, 4), wood: r(38, 5), lamp: r(43, 3), eye: [b + 46], eyeLight: b + 47, rope: r(48, 3), grey: r(51, 4), black: r(55, 4),
     denim: r(59, 4), red: r(63, 4), tweed: r(67, 4), mustard: r(71, 4), robe: r(75, 4), time: r(79, 3), waist: r(82, 3), wax: [b + 85, b + 86],
-    feather: [b + 85, b + 86], ghost: [b + 90, b + 87, b + 88, b + 89], lens: r(91, 2), dark: r(93, 3), hat: r(22, 4), band: r(63, 3) };
+    feather: [b + 85, b + 86], ghost: [b + 90, b + 87, b + 88, b + 89], lens: r(91, 2), dark: r(93, 3), hat: r(22, 4), band: r(63, 3),
+    tan: r(96, 5), deep: r(101, 5), brown: r(106, 5), warm: r(111, 5), hairBlack: r(116, 4) };
 };

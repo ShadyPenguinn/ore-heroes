@@ -22,6 +22,7 @@ def load(name):
 bg = load('bg')
 H, W = bg.shape[:2]
 items = [('bg', (np.dstack([bg, np.full(bg.shape[:2], 255, np.uint8)]), 0, 0))]
+masks = {}  # where each frame's changeable colours are (multi.js: <name>.slots.png), cropped like the frame
 for n in meta['jobs']:
     if n == 'bg':
         continue
@@ -35,6 +36,10 @@ for n in meta['jobs']:
     rgba[..., :3] = a[y0:y1, x0:x1]
     rgba[..., 3] = m[y0:y1, x0:x1] * 255
     items.append((n, (rgba, int(x0), int(y0))))
+    sp = os.path.join(FR, n + '.slots.png')
+    if os.path.exists(sp):
+        sm = np.asarray(Image.open(sp).convert('RGB'))[::PX, ::PX, 0]
+        masks[n] = (sm[y0:y1, x0:x1] * m[y0:y1, x0:x1]).astype(np.uint8)
 
 AW = 2048 if WHICH == 'mine' else 1024
 x = y = rowh = 0
@@ -52,6 +57,16 @@ for n, (img, ox, oy) in items:
     px, py, w, h, _, _ = place[n]
     atlas[py:py + h, px:px + w] = img
 im = Image.fromarray(atlas, 'RGBA')
+slots = {}
+if masks:
+    sa = np.zeros((AH, AW), np.uint8)
+    for n, mk in masks.items():
+        px, py, w, h, _, _ = place[n]
+        sa[py:py + h, px:px + w] = mk
+    Image.fromarray(sa, 'L').save(os.path.join(OUT, WHICH + '-slots.png'), optimize=True)
+    for f in sorted(os.listdir(FR)):
+        if f.startswith('slots-') and f.endswith('.json'):
+            slots[f[6:-5]] = json.load(open(os.path.join(FR, f)))
 # an exact palette when the atlas has few enough colours (the splat look does: a few hundred at most), else the nearest 255
 cols = np.unique(atlas[atlas[..., 3] > 0][:, :3], axis=0)
 if len(cols) <= 255:
@@ -66,6 +81,6 @@ if (np.asarray(q.convert('RGBA'))[..., 3] == atlas[..., 3]).all():
     q.save(os.path.join(OUT, WHICH + '.png'), optimize=True)
 else:
     im.save(os.path.join(OUT, WHICH + '.png'), optimize=True)
-out = {**({'k': K} if K > 1 else {}), 'w': W, 'h': H, 'sprites': {n: list(map(int, v)) for n, v in place.items()}, 'heroes': meta['heroes'], **({'cart': meta['cart']} if 'cart' in meta else {})}
+out = {**({'k': K} if K > 1 else {}), 'w': W, 'h': H, 'sprites': {n: list(map(int, v)) for n, v in place.items()}, 'heroes': meta['heroes'], **({'cart': meta['cart']} if 'cart' in meta else {}), **({'slots': slots} if slots else {})}
 json.dump(out, open(os.path.join(OUT, WHICH + '.json'), 'w'), separators=(',', ':'))
 print(WHICH, W, H, 'atlas', AW, AH, 'sprites', len(place), 'png', os.path.getsize(os.path.join(OUT, WHICH + '.png')))
