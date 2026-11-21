@@ -43,12 +43,14 @@ if (WHICH === 'mine') {
   for (const dir of ['out', 'in'])
     CART_Z.forEach((z, i) => { const n = `cart-${dir}-${i}`; layout.cart[dir].push(n); jobs.push({ name: n, env: { OH_LAYER: 'cart', OH_DIR: dir, OH_Z: String(z) }, t: (i % 4) * 0.25 }); });
 } else if (WHICH === 'camp') {
-  // art/src/camp.js: the fire's loop, and every body and head layer once at each of its two sets of spots (python3 tools/split.py camp
+  // art/src/camp.js: the fire's loop, and every body and head layer at each of its two sets of spots (python3 tools/split.py camp
   // then cuts each into one sprite per spot, before pack.py)
   clips({ fire: { idle: steps(0, 1, 12) } });
+  // each hero's act by the fire is a 3 s loop (art/src/camp.js ACTS): 18 frames of every layer
+  const ACT = steps(0, 3, 18), lay = n => ACT.forEach((t, i) => jobs.push({ name: `${n}-${i}`, env: { OH_LAYER: n }, t }));
   for (const set of ['a', 'b']) {
-    for (const o of ['none', 'sword', 'bow', 'axe', 'spear', 'shield', 'hammer']) jobs.push({ name: `b-${o}-${set}`, env: { OH_LAYER: `b-${o}-${set}` }, t: 0 });
-    for (const f of ['fem', 'male', 'beard']) for (const h of ['short', 'long', 'braid', 'bun', 'bald']) jobs.push({ name: `h-${f}-${h}-${set}`, env: { OH_LAYER: `h-${f}-${h}-${set}` }, t: 0 });
+    for (const o of ['none', 'sword', 'bow', 'axe', 'spear', 'shield', 'hammer']) lay(`b-${o}-${set}`);
+    for (const f of ['fem', 'male', 'beard']) for (const h of ['short', 'long', 'braid', 'bun', 'bald']) lay(`h-${f}-${h}-${set}`);
   }
 } else if (WHICH === 'explore') {
   // art/src/explore.js: your heroes facing right, the cave ghouls and the Warden facing left; idle, a swing, and a fall

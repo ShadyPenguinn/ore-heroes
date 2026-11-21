@@ -1,7 +1,7 @@
 // Ore Heroes: the heroes' camp, in the detailed splat look of the mine and the forge (same camera, lights style and scale).
 // A rock chamber off the mine, lit by a campfire in a ring of stones: bedrolls, a lean-to of timber and canvas, crates, a kettle,
 // a banner, and a dark passage at the back that leads deeper (where Explore goes). Up to six heroes gather round the fire, at six
-// spots (SPOTS below): two sit on logs at the sides, four stand behind.
+// spots (SPOTS below): one sits on a log, one cross-legged on a blanket, four stand. Each spot has its own act (ACTS below), a 3 s loop.
 // Each hero is two layers drawn one over the other, so any outfit goes with any face and hair:
 //   b-<outfit>-<set>   the body, dressed for a weapon: none (traveller's garb) | sword (knight) | bow (rogue) | axe (berserker) |
 //                      spear (pikeman) | shield (guardian) | hammer (forge brute), with the weapon worn or held
@@ -84,9 +84,9 @@ module.exports = ({ makeBuilder, makeSculpt, KIT: K }) => {
     const R = 5.2, RI = 4.6, H = 5.6;
     const FX = 0.6, FZ = 1.05; // the campfire
     // the six spots round the fire, in the order heroes join: [angle round the fire (180 = left, 270 = back), distance, seated]
-    const SPOTS = [[232, 1.55, 0], [308, 1.55, 0], [196, 1.6, 1], [344, 1.6, 1], [258, 1.85, 0], [282, 1.85, 0]].map(([a, r, seat]) => {
+    const SPOTS = [[232, 1.55, 'stand'], [308, 1.55, 'stand'], [196, 1.6, 'log'], [344, 1.5, 'floor'], [258, 1.85, 'stand'], [282, 1.85, 'stand']].map(([a, r, kind]) => {
       const t = (a * Math.PI) / 180, x = FX + r * Math.cos(t), z = FZ + r * Math.sin(t);
-      return { x, z, seat: !!seat, f: [FX - x, FZ - z] };
+      return { x, z, kind, f: [FX - x, FZ - z] };
     });
     const LANTERN = [-2.9, -2.6];
 
@@ -142,8 +142,10 @@ module.exports = ({ makeBuilder, makeSculpt, KIT: K }) => {
     S.bake();
 
     if (PROPS) {
-      // logs to sit on at the two seated spots
-      for (const i of [2, 3]) { const sp = SPOTS[i], l = Math.hypot(...sp.f), fx = sp.f[0] / l, fz = sp.f[1] / l, sx = fz, sz = -fx, cx = sp.x - fx * 0.05, cz = sp.z - fz * 0.05;
+      // a log to sit on at spot 2, a blanket on the floor at spot 3
+      { const sp = SPOTS[3], l = Math.hypot(...sp.f), fx = sp.f[0] / l, fz = sp.f[1] / l;
+        S.box([sp.x + fx * 0.08, 0.012, sp.z + fz * 0.08], [0.36, 0.012, 0.3], { r: [42, 43, 44], mod: (x, y, z) => 0.25 * Math.sin((x * fz - z * fx) * 60) + 0.1 * n(x, y, z, 30) }, { res: 0.012, ax: [[fz, 0, -fx], [0, 1, 0], [fx, 0, fz]] }); }
+      for (const i of [2]) { const sp = SPOTS[i], l = Math.hypot(...sp.f), fx = sp.f[0] / l, fz = sp.f[1] / l, sx = fz, sz = -fx, cx = sp.x - fx * 0.05, cz = sp.z - fz * 0.05;
         S.tube([[cx - sx * 0.5, 0.17, cz - sz * 0.5], [cx + sx * 0.5, 0.17, cz + sz * 0.5]], 0.17, 0.16, WOOD, { res: 0.015 });
         for (const e of [-1, 1]) S.lathe([cx + e * sx * 0.5, 0.17, cz + e * sz * 0.5], 0.015, 0.155, { r: [9, 10, 65, 66] }, { res: 0.008, ax: [[fx, 0, fz], [sx * e, 0, sz * e], [0, 1, 0]] }); }
       // a lean-to on the left: two poles and a slanted canvas, a bedroll and a pack under it
@@ -211,75 +213,175 @@ module.exports = ({ makeBuilder, makeSculpt, KIT: K }) => {
     let pose = null;
     const mb = layer.match(/^b-(\w+)-([ab])$/), mh = layer.match(/^h-(fem|male|beard)-(short|long|braid|bun|bald)-([ab])$/);
     const setOf = s => (s === 'a' ? [2, 4, 1] : [0, 5, 3]); // every other spot round the fire, left to right, so no two overlap
-    // a figure's frame and where its body puts the head (as HB.body works it out), standing or sitting
     const frame = sp => HB.rig(sp.x, sp.z, sp.f);
-    const headAt = sp => { const crouch = sp.seat ? 1 : 0, hip = 0.66 - crouch * 0.3, ch = hip + 0.31, lean = crouch * 0.1; return [0, ch + 0.27, lean + 0.01]; };
-    // a weapon from art/src/weapon-models.js, worn on a figure: `p` in the figure's frame, `s` its size, `roll` its turn in view
-    const wear = (F, k, p, s, roll, o = {}) => WM.draw(S, B, k, { base: WBASE, at: F.P(...p), s, roll, resK: 2.4, ...o });
+    // a figure's hip, chest and lean, as HB.body works them out for the way it sits or stands
+    const fig = i => { const k = SPOTS[i].kind, hip = k === 'floor' ? 0.16 : k === 'log' ? 0.36 : 0.66; return { hip, ch: hip + 0.31, lean: k === 'floor' ? 0.05 : k === 'log' ? 0.1 : 0 }; };
+    const headAt = i => { const { ch, lean } = fig(i); return [0, ch + 0.27, lean + 0.01]; };
+    const neckAt = i => { const { ch, lean } = fig(i); return [0, ch + 0.13, lean + 0.01]; };
+    // anything drawn while `autoTag` is set joins that part (the weapons from weapon-models.js, which take no tag of their own)
+    let autoTag = null;
+    for (const m of ['lathe', 'rock', 'box', 'tube', 'ball', 'extrude', 'torus']) { const f = S[m].bind(S); S[m] = (...a) => { const o = a[a.length - 1];
+      if (autoTag && o && typeof o === 'object' && !Array.isArray(o) && !o.tag && ('res' in o || 'ax' in o)) a[a.length - 1] = { ...o, tag: autoTag }; return f(...a) } }
+    const wear = (F, k, p, s, roll, tag) => { autoTag = tag || null; WM.draw(S, B, k, { base: WBASE, at: F.P(...p), s, roll, resK: 2.4 }); autoTag = null; };
+
+    // ---- what each hero does by the fire: one act for each spot, a 3 second loop. Each act gives the arms' rest (elbow and hand, by
+    // side s = -1 | 1), its props (drawn into a part: 'body', 'f1' the +side forearm, 'f0' the other, 'p' a prop in the +side hand) and
+    // the pose at time t: degrees about the figure's side axis (+ tips forward down), up axis (+ turns toward +side) and forward axis
+    // (+ rolls the +side up), for the torso (about the hip), the head (about the neck), the upper arms u1/u0, the forearms f1/f0 and p.
+    const sm = x => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x));
+    const win = (t, a, b, c, d) => sm((t - a) / (b - a)) * (1 - sm((t - c) / (d - c)));
+    const TAU = Math.PI * 2;
+    const WOODM = Mt.wood(C.wood), LIGHTW = flat([C.wood[3], C.wood[4]]);
+    const ACTS = [
+      { // 0: a drink: the mug comes up, the head tips back, a long pull, and down again; the other hand on the hip
+        arms: ({ ch: c }) => ({ 1: [[0.16, c - 0.2, 0.02], [0.13, c - 0.19, 0.19]], [-1]: [[-0.23, c - 0.15, -0.03], [-0.13, c - 0.32, 0.04]] }),
+        props(F, P, h) { const q = h[1][1], m = [q[0] - 0.04, q[1] - 0.01, q[2] + 0.01];
+          HB.lathe(F, [m[0], m[1] - 0.05, m[2]], 0.1, 0.034, WOODM, P('p'), 0.004);
+          for (const y of [-0.035, 0.03]) HB.lathe(F, [m[0], m[1] + y, m[2]], 0.01, 0.037, flat(C.iron.slice(1, 3)), P('p'), 0.003);
+          HB.lathe(F, [m[0], m[1] + 0.05, m[2]], 0.012, 0.03, flat([C.wax[0], C.wax[1]]), P('p'), 0.003); // the head on the ale
+          HB.tube(F, [[m[0] + 0.03, m[1] + 0.03, m[2]], [m[0] + 0.058, m[1], m[2]], [m[0] + 0.03, m[1] - 0.03, m[2]]], 0.008, 0.008, WOODM, P('p'), 0.003); },
+        pose(t) { const w = (TAU * t) / 3, u = win(t, 0.6, 1.1, 1.8, 2.3);
+          return { torso: [-3 * u, 4 * Math.sin(w), 1.5 * Math.sin(w)], head: [-20 * u + 3 * Math.sin(2 * w) * (1 - u), 10 * Math.sin(w) * (1 - u), 0],
+            u1: [-74 * u, -30 * u, 0], f1: [-55 * u, 0, 0], p: [64 * u, 0, 0], u0: [0, 0, 2 * Math.sin(w)] }; }
+      },
+      { // 1: warming the hands: palms out to the fire, a lean in, then a good rub
+        arms: ({ ch: c }) => ({ 1: [[0.17, c - 0.16, 0.05], [0.07, c - 0.06, 0.28]], [-1]: [[-0.17, c - 0.16, 0.05], [-0.07, c - 0.06, 0.28]] }),
+        pose(t) { const w = (TAU * t) / 3, lean = win(t, 0.1, 0.6, 1.1, 1.5), rub = win(t, 1.4, 1.7, 2.5, 2.8), o = Math.sin(TAU * 2 * t);
+          return { torso: [7 * lean, 0, 1.5 * Math.sin(w)], head: [4 * lean + 6 * rub, 14 * Math.sin(w) * (1 - rub), 0],
+            u1: [-12 * lean, 0, -4 * rub], u0: [-12 * lean, 0, 4 * rub], f1: [5 * rub * o, -7 * rub + 6 * rub * o, 0], f0: [-5 * rub * o, 7 * rub + 6 * rub * o, 0] }; }
+      },
+      { // 2: a tune on a lute, sitting on the log: strumming, the chords changing, the head nodding along
+        arms: () => ({ 1: [[0.2, 0.52, 0.08], [0.09, 0.47, 0.27]], [-1]: [[-0.2, 0.5, 0.17], [-0.2, 0.64, 0.28]] }),
+        props(F, P) { const T = P('body'), BOWL = Mt.wood([C.wood[0], C.wood[1], C.wood[2], C.wood[3]]), FACE = flat([C.wood[3], C.wood[4]]);
+          HB.ball(F, [0.06, 0.46, 0.21], [0.11, 0.09, 0.05], BOWL, T, 0.004);
+          HB.ball(F, [0.06, 0.46, 0.24], [0.1, 0.08, 0.018], FACE, T, 0.003);
+          HB.ball(F, [0.05, 0.475, 0.26], [0.024, 0.024, 0.006], flat([C.black[0]]), T, 0.002); // the sound hole
+          HB.box(F, [0.1, 0.43, 0.258], [0.03, 0.006, 0.006], flat(C.wood.slice(0, 2)), T, 0.002); // the bridge
+          HB.tube(F, [[-0.02, 0.5, 0.24], [-0.26, 0.665, 0.25]], 0.017, 0.014, flat(C.wood.slice(0, 3)), T, 0.003); // the neck
+          HB.tube(F, [[-0.26, 0.665, 0.25], [-0.31, 0.68, 0.2]], 0.016, 0.014, flat(C.wood.slice(0, 2)), T, 0.003); // the pegbox, bent back
+          for (const k of [0.2, 0.5, 0.8]) HB.ball(F, HB.lerp([-0.26, 0.665, 0.25], [-0.31, 0.68, 0.2], k).map((v, j) => v + (j === 2 ? 0 : j === 0 ? 0.02 : 0.015)), 0.008, flat([C.wax[0]]), T, 0.002);
+          HB.tube(F, [[0.1, 0.43, 0.265], [-0.26, 0.668, 0.264]], 0.0035, 0.0035, flat([C.wax[0], C.wax[1]]), T, 0.0015); },
+        pose(t) { const w = (TAU * t) / 3, st = Math.sin(TAU * 2 * t), beat = Math.abs(Math.sin(Math.PI * 2 * t)), ch = [0, 7, -5][Math.floor(t) % 3];
+          return { torso: [2, 0, 3 * Math.sin(TAU * t)], head: [6 + 7 * beat, -12 + 4 * Math.sin(w), 7 * Math.sin(TAU * t)],
+            u1: [3 * st, 0, 0], f1: [12 * st, 0, 0], f0: [0, ch, 0], u0: [0, 0, ch * 0.3] }; }
+      },
+      { // 3: whittling, cross-legged on a blanket: three strokes of the knife along a stick, then a look at the work
+        arms: ({ ch: c }) => ({ 1: [[0.17, c - 0.22, 0.06], [0.06, c - 0.2, 0.28]], [-1]: [[-0.17, c - 0.22, 0.08], [-0.06, c - 0.24, 0.27]] }),
+        props(F, P, h) { const a = h[-1][1], k = h[1][1];
+          HB.tube(F, [[a[0] - 0.02, a[1] - 0.01, a[2] - 0.02], [a[0] + 0.17, a[1] + 0.07, a[2] + 0.07]], 0.012, 0.009, LIGHTW, P('f0'), 0.003);
+          HB.tube(F, [[k[0], k[1] - 0.01, k[2] + 0.01], [k[0] + 0.01, k[1] + 0.065, k[2] + 0.04]], 0.007, 0.002, flat([C.iron[2], C.iron[3]]), P('f1'), 0.002);
+          for (let j = 0; j < 5; j++) HB.ball(F, [0.05 * Math.sin(j * 2.3) + 0.05, 0.04, 0.34 + 0.04 * Math.cos(j * 1.7)], [0.012, 0.006, 0.01], LIGHTW, null, 0.003); }, // shavings
+        pose(t) { const ph = t % 1, out = t < 2 ? (ph < 0.35 ? sm(ph / 0.35) : 1 - sm((ph - 0.35) / 0.65)) : 0, look = win(t, 2.0, 2.3, 2.7, 3.0);
+          return { torso: [7 - 5 * look, 0, 0], head: [20 - 14 * look, 4 * out, 5 * look], f1: [-8 * out, 24 * out, 0], f0: [-38 * look, -6 * look, 0], u0: [-10 * look, 0, 0] }; }
+      },
+      { // 4: telling a story: a sweep of the hand, arms thrown wide ("this big!"), then leaning in to tell the best part
+        arms: ({ ch: c }) => ({ 1: [[0.17, c - 0.2, 0.01], [0.15, c - 0.13, 0.19]], [-1]: [[-0.16, c - 0.23, -0.01], [-0.16, c - 0.45, 0.03]] }),
+        pose(t) { const g1 = win(t, 0, 0.4, 0.8, 1.1), g2 = win(t, 1.0, 1.35, 1.8, 2.15), g3 = win(t, 2.1, 2.4, 2.75, 3.0);
+          return { torso: [-3 * g2 + 8 * g3, 6 * g1 - 4 * g3, 0], head: [-10 * g2 + 5 * g3, 18 * g1 - 16 * g3, 4 * g3],
+            u1: [-25 * g1 - 35 * g2 - 12 * g3, 0, 25 * g1 + 45 * g2], f1: [-20 * g3, 25 * g1 - 15 * g3, 0], u0: [-35 * g2, 0, -45 * g2], f0: [-55 * g2, 0, 0] }; }
+      },
+      { // 5: roasting a sausage on a long stick held out over the flames, now and then lifting it to see if it's done
+        arms: ({ ch: c }) => ({ 1: [[0.16, c - 0.22, 0.03], [0.06, c - 0.3, 0.2]], [-1]: [[-0.15, c - 0.22, 0.12], [0.055, c - 0.32, 0.32]] }),
+        props(F, P, h, i) { const a = h[1][1], d = Math.hypot(...SPOTS[i].f) - 0.2, tip = [0, 0.6, d], dir = tip.map((v, j) => v - a[j]), l = Math.hypot(...dir), u = dir.map(v => v / l);
+          HB.tube(F, [a.map((v, j) => v - u[j] * 0.1), tip], 0.011, 0.007, WOODM, P('f1'), 0.004);
+          HB.tube(F, [tip.map((v, j) => v - u[j] * 0.13), tip.map((v, j) => v + u[j] * 0.01)], 0.024, 0.022, flat([C.red[0], C.red[1], 19, 20]), P('f1'), 0.004); },
+        pose(t) { const w = (TAU * t) / 3, chk = win(t, 1.6, 2.0, 2.4, 2.8);
+          return { torso: [-2 * chk, 3 * Math.sin(w), 2 * Math.sin(w)], head: [8 - 6 * chk, 6 * Math.sin(w) * (1 - chk), 0],
+            u1: [-8 * chk, 0, 0], f1: [-7 * chk + 1.5 * Math.sin(TAU * t), 0, 0], u0: [-8 * chk, 0, 0], f0: [-7 * chk, 0, 0] }; }
+      }
+    ];
+    const D = Math.PI / 180;
+    const R3 = (F, r) => K.M.mul(K.M.rot(F.fwd, (r ? r[2] : 0) * D), K.M.mul(K.M.rot([0, 1, 0], (r ? r[1] : 0) * D), K.M.rot(F.side, (r ? r[0] : 0) * D)));
+    // an arm in two parts, the upper arm (turning at the shoulder) and the forearm with the hand (turning at the elbow)
+    const limb = (F, sh, el, hand, ut, ft, o) => {
+      HB.tube(F, [sh, el], 0.036, 0.032, o.sleeve, ut, 0.006);
+      HB.ball(F, el, o.rolled ? 0.04 : 0.033, o.rolled ? o.cuff || o.sleeve : o.sleeve, ut, 0.005);
+      if (o.rolled) HB.tube(F, [el, hand], 0.028, 0.022, o.skin, ft, 0.005);
+      else { HB.tube(F, [el, hand], 0.032, 0.03, o.sleeve, ft, 0.005); if (o.cuff) HB.ball(F, HB.lerp(el, hand, 0.85), [0.035, 0.035, 0.035], o.cuff, ft, 0.004); }
+      HB.ball(F, hand, o.glove ? [0.036, 0.04, 0.036] : [0.03, 0.036, 0.03], o.glove || o.skin, ft, 0.005);
+      HB.ball(F, [hand[0], hand[1] + 0.028, hand[2] + 0.02], 0.014, o.glove || o.skin, ft, 0.004);
+    };
+    const rigs = []; // what the puppet needs to move each hero drawn in this layer
 
     if (mb) {
       const k = mb[1], ramps = OUT[k];
       slots = { skin: SKIN, a: ramps.a, b: ramps.b };
       for (const i of setOf(mb[2])) {
-        const sp = SPOTS[i], F = frame(sp), seat = sp.seat, SK = Mt.skin(SKIN);
+        const sp = SPOTS[i], F = frame(sp), seat = sp.kind !== 'stand', SK = Mt.skin(SKIN), act = ACTS[i];
+        const T = 'body' + i, P = p => p && p + '_' + i;
         const A = Mt.cloth(ramps.a, 0.2), Bm = k === 'axe' ? Mt.fur(ramps.b, { len: 0.03 }) : k === 'bow' || k === 'hammer' || k === 'none' ? Mt.leather(ramps.b) : Mt.cloth(ramps.b, 0.18);
-        const shirt = k === 'sword' ? MAIL : k === 'axe' || k === 'spear' || k === 'shield' || k === 'hammer' || k === 'bow' || k === 'none' ? A : A;
-        const bd = HB.body(F, { shirt, trous: Mt.cloth(C.trous, 0.25), boot: Mt.leather(C.boot), skin: SK, belt: DLEATH, buckle: k === 'none' ? IRONM : BRASSM, crouch: seat ? 1 : 0 });
-        const { hip, ch, lean } = bd;
-        // arms: hanging relaxed when standing, forearms on the knees when sitting
-        const arms = (sleeve, o = {}) => { for (const s of [-1, 1]) { const S0 = bd.sh(s), h = seat ? [s * 0.11, 0.42, 0.26] : [s * 0.16, 0.63, 0.06];
-          if (o.hold && s === 1 && !seat) h.splice(0, 3, 0.15, 0.78, 0.14);
-          HB.arm(F, S0, HB.elbow(S0, h, seat ? [s * 0.04, -0.06, -0.02] : [s * 0.03, 0, -0.04]), h, { tag: 'body', sleeve, rolled: o.rolled, cuff: o.cuff || sleeve, skin: SK, glove: o.glove, grip: !!(o.hold && s === 1) }); } };
+        const shirt = k === 'sword' ? MAIL : A;
+        const bd = HB.body(F, { tag: T, legTags: ['legs', 'legs'], shirt, trous: Mt.cloth(C.trous, 0.25), boot: Mt.leather(C.boot), skin: SK, belt: DLEATH, buckle: k === 'none' ? IRONM : BRASSM, crouch: sp.kind === 'log' ? 1 : 0, cross: sp.kind === 'floor' });
+        const { hip, ch, lean } = bd, ar = act.arms(bd);
+        const arms = (sleeve, o = {}) => { for (const s of [-1, 1]) { const j = s > 0 ? 1 : 0, sh = bd.sh(s);
+          limb(F, sh, ar[s][0], ar[s][1], P('u' + j), P('f' + j), { sleeve, rolled: o.rolled, cuff: o.cuff || sleeve, skin: SK, glove: o.glove }); } };
+        // a weapon too long to sit with stands planted beside the hero
+        const plant = (w, s, y, roll) => wear(F, w, [-0.3, y, -0.04], s, roll);
         if (k === 'none') { // a traveller: a long tunic, a leather vest, a satchel on a strap, a walking cloak rolled on the shoulders
-          HB.box(F, [0, hip - 0.08, 0.0], [0.105, 0.13, 0.085], A, 'body', 0.005, null, 0.02);
-          HB.box(F, [0, ch - 0.05, 0.01], [0.1, 0.13, 0.085], Bm, 'body', 0.005, null, 0.02);
-          HB.tube(F, [[-0.12, ch + 0.06, 0.05], [0.1, hip + 0.02, 0.07]], 0.009, 0.009, Bm, 'body', 0.003);
-          HB.box(F, [0.12, hip - 0.02, 0.03], [0.03, 0.06, 0.07], Bm, 'body', 0.004, null, 0.01);
-          HB.tube(F, [[-0.13, ch + 0.08, -0.02], [0, ch + 0.11, -0.07], [0.13, ch + 0.08, -0.02]], 0.04, 0.04, Mt.cloth(C.trous, 0.2), 'body', 0.005);
+          HB.box(F, [0, hip - 0.08, 0.0], [0.105, 0.13, 0.085], A, T, 0.005, null, 0.02);
+          HB.box(F, [0, ch - 0.05, 0.01], [0.1, 0.13, 0.085], Bm, T, 0.005, null, 0.02);
+          HB.tube(F, [[-0.12, ch + 0.06, 0.05], [0.1, hip + 0.02, 0.07]], 0.009, 0.009, Bm, T, 0.003);
+          HB.box(F, [0.12, hip - 0.02, 0.03], [0.03, 0.06, 0.07], Bm, T, 0.004, null, 0.01);
+          HB.tube(F, [[-0.13, ch + 0.08, -0.02], [0, ch + 0.11, -0.07], [0.13, ch + 0.08, -0.02]], 0.04, 0.04, Mt.cloth(C.trous, 0.2), T, 0.005);
           arms(A, { rolled: true, cuff: A });
         } else if (k === 'sword') { // a knight: mail under a blue tabard with a brass-edged belt, steel shoulders, a red cape; the sword at the hip
-          HB.box(F, [0, ch - 0.12, 0.0], [0.1, 0.3, 0.09], A, 'body', 0.005, null, 0.015);
-          for (let y = 0; y < 3; y++) HB.box(F, [0, ch - 0.02 - y * 0.12, 0.093], [0.012, 0.05, 0.004], flat([C.brass[1], C.brass[2]]), 'body', 0.002);
-          for (const s of [-1, 1]) HB.ball(F, [s * 0.13, ch + 0.07, lean], [0.065, 0.05, 0.065], Mt.metal(C.iron), 'body', 0.004);
-          HB.box(F, [0, ch - 0.15 - (seat ? -0.15 : 0), -0.1], [0.12, seat ? 0.2 : 0.36, 0.012], Bm, 'body', 0.005, null, 0.015);
+          HB.box(F, [0, ch - 0.12, 0.0], [0.1, 0.3, 0.09], A, T, 0.005, null, 0.015);
+          for (let y = 0; y < 3; y++) HB.box(F, [0, ch - 0.02 - y * 0.12, 0.093], [0.012, 0.05, 0.004], flat([C.brass[1], C.brass[2]]), T, 0.002);
+          for (const s of [-1, 1]) HB.ball(F, [s * 0.13, ch + 0.07, lean], [0.065, 0.05, 0.065], Mt.metal(C.iron), T, 0.004);
+          HB.box(F, [0, ch - 0.15 - (seat ? -0.15 : 0), -0.1], [0.12, seat ? 0.2 : 0.36, 0.012], Bm, T, 0.005, null, 0.015);
           arms(MAIL, { glove: Mt.leather(C.leather) });
-          wear(F, 'sword', [-0.14, seat ? 0.36 : 0.5, 0.04], 0.55, Math.PI + 0.25);
+          if (sp.kind === 'floor') wear(F, 'sword', [-0.3, 0.06, 0.05], 0.55, Math.PI / 2 + 0.1);
+          else wear(F, 'sword', [-0.14, seat ? 0.36 : 0.5, 0.04], 0.55, Math.PI + 0.25, T);
         } else if (k === 'bow') { // a rogue: a green hooded cloak (the hood down on the shoulders), a laced leather jerkin, the bow and quiver on the back
-          HB.box(F, [0, ch - 0.05, 0.01], [0.1, 0.15, 0.088], Bm, 'body', 0.005, null, 0.02);
-          for (const y of [0.0, -0.07, -0.14]) HB.tube(F, [[-0.03, ch + y, 0.098], [0.03, ch + y + 0.015, 0.098]], 0.005, 0.005, flat([C.rope[1], C.rope[2]]), 'body', 0.002);
-          HB.ball(F, [0, ch + 0.08, lean - 0.03], [0.17, 0.07, 0.13], A, 'body', 0.005);
-          HB.box(F, [0, ch - 0.18 + (seat ? 0.1 : 0), -0.09], [0.13, seat ? 0.18 : 0.3, 0.015], A, 'body', 0.005, null, 0.015);
-          HB.tube(F, [[0.1, hip, -0.13], [-0.07, ch + 0.14, -0.14]], 0.04, 0.045, Bm, 'body', 0.004);
-          for (let i = 0; i < 4; i++) HB.box(F, [-0.09 + i * 0.022, ch + 0.21, -0.14], [0.006, 0.04, 0.016], flat([C.red[1], C.red[2]]), 'body', 0.003);
+          HB.box(F, [0, ch - 0.05, 0.01], [0.1, 0.15, 0.088], Bm, T, 0.005, null, 0.02);
+          for (const y of [0.0, -0.07, -0.14]) HB.tube(F, [[-0.03, ch + y, 0.098], [0.03, ch + y + 0.015, 0.098]], 0.005, 0.005, flat([C.rope[1], C.rope[2]]), T, 0.002);
+          HB.ball(F, [0, ch + 0.08, lean - 0.03], [0.17, 0.07, 0.13], A, T, 0.005);
+          HB.box(F, [0, ch - 0.18 + (seat ? 0.1 : 0), -0.09], [0.13, seat ? 0.18 : 0.3, 0.015], A, T, 0.005, null, 0.015);
+          HB.tube(F, [[0.1, hip, -0.13], [-0.07, ch + 0.14, -0.14]], 0.04, 0.045, Bm, T, 0.004);
+          for (let j = 0; j < 4; j++) HB.box(F, [-0.09 + j * 0.022, ch + 0.21, -0.14], [0.006, 0.04, 0.016], flat([C.red[1], C.red[2]]), T, 0.003);
           arms(A, { cuff: Bm });
-          wear(F, 'bow', [0.02, ch - 0.05, -0.16], 0.75, 0.55);
+          wear(F, 'bow', [0.02, ch - 0.05, -0.16], 0.75, 0.55, T);
         } else if (k === 'axe') { // a berserker: a red tunic, a wolf-fur mantle over bare arms, leather wraps, the great axe over the back
-          HB.box(F, [0, hip - 0.06, 0.0], [0.105, 0.13, 0.085], A, 'body', 0.005, null, 0.02);
-          HB.ball(F, [0, ch + 0.06, lean - 0.01], [0.19, 0.085, 0.14], Bm, 'body', 0.006);
-          for (const s of [-1, 1]) HB.lathe(F, [s * 0.145, ch - 0.15, lean + 0.03], 0.1, 0.034, DLEATH, 'body', 0.004);
-          arms(SK, { rolled: true, cuff: SK });
-          wear(F, 'axe', [0.04, ch - 0.02, -0.15], 0.75, -0.55);
-        } else if (k === 'spear') { // a pikeman: a quilted mustard gambeson, a steel breastplate, a burgundy sash; the spear held upright
-          for (let y = 0; y < 5; y++) HB.lathe(F, [0, hip - 0.04 + y * 0.075, 0], 0.012, 0.105 + 0.006 * Math.sin(y), flat([ramps.a[0], ramps.a[1]]), 'body', 0.003);
-          HB.ball(F, [0, ch - 0.02, lean + 0.035], [0.11, 0.11, 0.075], IRONM, 'body', 0.005);
-          HB.tube(F, [[-0.11, ch + 0.05, 0.06], [0.09, hip, 0.08]], 0.025, 0.025, Bm, 'body', 0.004);
-          HB.tube(F, [[0.09, hip, 0.08], [0.12, hip - 0.16, 0.08]], 0.02, 0.008, Bm, 'body', 0.004);
-          arms(A, { hold: true, cuff: A });
-          wear(F, 'spear', seat ? [0.2, 0.75, 0.2] : [0.15, 0.9, 0.16], 1.05, seat ? -0.3 : 0);
+          HB.box(F, [0, hip - 0.06, 0.0], [0.105, 0.13, 0.085], A, T, 0.005, null, 0.02);
+          HB.ball(F, [0, ch + 0.06, lean - 0.01], [0.19, 0.085, 0.14], Bm, T, 0.006);
+          arms(SK, { rolled: true, cuff: DLEATH });
+          wear(F, 'axe', [0.04, ch - 0.02, -0.15], 0.75, -0.55, T);
+        } else if (k === 'spear') { // a pikeman: a quilted mustard gambeson, a steel breastplate, a burgundy sash; the spear planted beside
+          for (let y = 0; y < 5; y++) HB.lathe(F, [0, hip - 0.04 + y * 0.075, 0], 0.012, 0.105 + 0.006 * Math.sin(y), flat([ramps.a[0], ramps.a[1]]), T, 0.003);
+          HB.ball(F, [0, ch - 0.02, lean + 0.035], [0.11, 0.11, 0.075], IRONM, T, 0.005);
+          HB.tube(F, [[-0.11, ch + 0.05, 0.06], [0.09, hip, 0.08]], 0.025, 0.025, Bm, T, 0.004);
+          HB.tube(F, [[0.09, hip, 0.08], [0.12, hip - 0.16, 0.08]], 0.02, 0.008, Bm, T, 0.004);
+          arms(A, { cuff: A });
+          plant('spear', 1.05, 0.58, 0.06);
         } else if (k === 'shield') { // a guardian: a long purple surcoat with mustard trim over mail, a steel gorget; the round shield on the back
-          HB.box(F, [0, ch - 0.14, 0.0], [0.11, 0.34, 0.092], A, 'body', 0.005, null, 0.015);
-          HB.box(F, [0, ch - 0.14, 0.094], [0.02, 0.32, 0.004], flat([ramps.b[1], ramps.b[2]]), 'body', 0.002);
-          HB.lathe(F, [0, hip + 0.0, 0], 0.035, 0.11, Bm, 'body', 0.004);
-          HB.lathe(F, [0, ch + 0.08, lean], 0.07, t => 0.075 - 0.02 * t, IRONM, 'body', 0.004);
+          HB.box(F, [0, ch - 0.14, 0.0], [0.11, 0.34, 0.092], A, T, 0.005, null, 0.015);
+          HB.box(F, [0, ch - 0.14, 0.094], [0.02, 0.32, 0.004], flat([ramps.b[1], ramps.b[2]]), T, 0.002);
+          HB.lathe(F, [0, hip + 0.0, 0], 0.035, 0.11, Bm, T, 0.004);
+          HB.lathe(F, [0, ch + 0.08, lean], 0.07, t => 0.075 - 0.02 * t, IRONM, T, 0.004);
           arms(MAIL, { glove: Mt.leather(C.leather) });
-          wear(F, 'shield', [0, ch - 0.06, -0.15], 0.42, 0);
-        } else if (k === 'hammer') { // a forge brute: a red shirt with the sleeves rolled, a heavy leather apron, gauntlets; the warhammer planted
-          HB.box(F, [0, ch - 0.04, 0.095], [0.085, 0.13, 0.01], Bm, 'body', 0.004, null, 0.008);
-          HB.box(F, [0, hip - 0.12, 0.09], [0.1, 0.16, 0.012], Bm, 'body', 0.004, null, 0.01);
-          for (const s of [-1, 1]) HB.tube(F, [[s * 0.065, ch + 0.08, 0.098], [s * 0.06, ch + 0.17, 0.0], [0, ch + 0.18, -0.06]], 0.008, 0.008, DLEATH, 'body', 0.003);
+          wear(F, 'shield', [0, ch - 0.06, -0.15], 0.42, 0, T);
+        } else if (k === 'hammer') { // a forge brute: a red shirt with the sleeves rolled, a heavy leather apron, gauntlets; the warhammer stood on its head
+          HB.box(F, [0, ch - 0.04, 0.095], [0.085, 0.13, 0.01], Bm, T, 0.004, null, 0.008);
+          HB.box(F, [0, hip - 0.12, 0.09], [0.1, 0.16, 0.012], Bm, T, 0.004, null, 0.01);
+          for (const s of [-1, 1]) HB.tube(F, [[s * 0.065, ch + 0.08, 0.098], [s * 0.06, ch + 0.17, 0.0], [0, ch + 0.18, -0.06]], 0.008, 0.008, DLEATH, T, 0.003);
           arms(A, { rolled: true, cuff: A, glove: Mt.leather(C.leather) });
-          wear(F, 'hammer', seat ? [0.32, 0.36, 0.12] : [0.24, 0.42, 0.1], 0.7, Math.PI - (seat ? 0.15 : 0.05));
+          plant('hammer', 0.7, 0.27, Math.PI - 0.1);
         }
+        if (act.props) act.props(F, P, ar, i);
+        const W = v => F.P(...v);
+        rigs.push({ i, F, hip: W([0, hip, 0]), sh: { 1: W(bd.sh(1)), 0: W(bd.sh(-1)) }, el: { 1: W(ar[1][0]), 0: W(ar[-1][0]) }, hand: W(ar[1][1]) });
+      }
+      if (env.OH_STILL !== '1') {
+        const D3 = rigs;
+        pose = (t, dt, pup) => { for (const r of D3) { const q = ACTS[r.i].pose(t % 3), p = (k, v) => { pup.pose[k === 'body' ? 'body' + r.i : k + '_' + r.i] = v; };
+          p('body', { turn: R3(r.F, q.torso) });
+          for (const j of [1, 0]) { p('u' + j, { turn: R3(r.F, q['u' + j]) }); p('f' + j, { turn: R3(r.F, q['f' + j]) }); }
+          p('p', { turn: R3(r.F, q.p) }); } };
+        for (const r of rigs) { const i = r.i;
+          parts['body' + i] = { pivot: r.hip, slices: 1 };
+          for (const j of [1, 0]) { parts['u' + j + '_' + i] = { pivot: r.sh[j], parent: 'body' + i, slices: 1 };
+            parts['f' + j + '_' + i] = { pivot: r.el[j], parent: 'u' + j + '_' + i, slices: 1 }; }
+          parts['p_' + i] = { pivot: r.hand, parent: 'f1_' + i, slices: 1 }; } // (a part that drew nothing is dropped below, once the bake has tagged the splats)
       }
     }
     if (mh) {
@@ -287,19 +389,26 @@ module.exports = ({ makeBuilder, makeSculpt, KIT: K }) => {
       slots = { skin: SKIN, hair: HAIR };
       const HR = HAIR.slice(0, 3), FUR = o => Mt.fur(HR, o);
       for (const i of setOf(set)) {
-        const sp = SPOTS[i], F = frame(sp), SK = Mt.skin(SKIN), H0 = headAt(sp);
+        const sp = SPOTS[i], F = frame(sp), SK = Mt.skin(SKIN), H0 = headAt(i), tg = 'head' + i;
         // the neck too, so the head never floats over a collar
-        HB.tube(F, [[0, H0[1] - 0.2, H0[2] - 0.01], [0, H0[1] - 0.1, H0[2]]], 0.038, 0.04, SK, 'head', 0.005);
-        const hd = HB.head(F, H0, { tag: 'head', skin: SK, fem: face === 'fem', beard: face === 'beard' ? 'full' : 'none', tash: 'none', beardRamp: HAIR, brow: HR, nose: ['round', 'long', 'hook'][i % 3], hair: 'none' });
+        HB.tube(F, [[0, H0[1] - 0.2, H0[2] - 0.01], [0, H0[1] - 0.1, H0[2]]], 0.038, 0.04, SK, tg, 0.005);
+        const hd = HB.head(F, H0, { tag: tg, skin: SK, fem: face === 'fem', beard: face === 'beard' ? 'full' : 'none', tash: 'none', beardRamp: HAIR, brow: HR, nose: ['round', 'long', 'hook'][i % 3], hair: 'none' });
         const at = hd.at;
-        if (hair !== 'bald') HB.ball(F, at(0, 0.05, -0.03), [0.128, 0.105, 0.125], FUR({ len: 0.012 }), 'head', 0.005); // short hair, close to the skull
-        if (hair === 'long') { for (const s of [-1, 1]) HB.ball(F, at(s * 0.105, -0.07, -0.03), [0.05, 0.13, 0.075], FUR({ len: 0.03 }), 'head', 0.005);
-          HB.ball(F, at(0, -0.08, -0.08), [0.125, 0.16, 0.07], FUR({ len: 0.03 }), 'head', 0.006); }
+        if (hair !== 'bald') HB.ball(F, at(0, 0.05, -0.03), [0.128, 0.105, 0.125], FUR({ len: 0.012 }), tg, 0.005); // short hair, close to the skull
+        if (hair === 'long') { for (const s of [-1, 1]) HB.ball(F, at(s * 0.105, -0.07, -0.03), [0.05, 0.13, 0.075], FUR({ len: 0.03 }), tg, 0.005);
+          HB.ball(F, at(0, -0.08, -0.08), [0.125, 0.16, 0.07], FUR({ len: 0.03 }), tg, 0.006); }
         if (hair === 'braid') { const p = [at(0.1, -0.02, -0.03), at(0.12, -0.14, 0.0), at(0.11, -0.27, 0.06), at(0.09, -0.4, 0.09)];
           for (let j = 0; j < 7; j++) { const t = j / 6, q = p[Math.min(2, Math.floor(t * 3))], r = p[Math.min(3, Math.floor(t * 3) + 1)], u = t * 3 - Math.floor(t * 3);
-            HB.ball(F, HB.lerp(q, r, Math.min(1, u)).map((v, m) => v + (m === 0 ? 0.008 * (j % 2 ? 1 : -1) : 0)), [0.028 - 0.002 * j, 0.03, 0.028 - 0.002 * j], FUR({ len: 0.012 }), 'head', 0.004); }
-          HB.lathe(F, [p[3][0], p[3][1] - 0.035, p[3][2]], 0.015, 0.02, flat([78, 79]), 'head', 0.003); }
-        if (hair === 'bun') { HB.ball(F, at(0, 0.11, -0.08), [0.065, 0.06, 0.06], FUR({ len: 0.015 }), 'head', 0.005); HB.lathe(F, at(0, 0.075, -0.065), 0.015, 0.045, flat([78, 79]), 'head', 0.003); }
+            HB.ball(F, HB.lerp(q, r, Math.min(1, u)).map((v, m) => v + (m === 0 ? 0.008 * (j % 2 ? 1 : -1) : 0)), [0.028 - 0.002 * j, 0.03, 0.028 - 0.002 * j], FUR({ len: 0.012 }), tg, 0.004); }
+          HB.lathe(F, [p[3][0], p[3][1] - 0.035, p[3][2]], 0.015, 0.02, flat([78, 79]), tg, 0.003); }
+        if (hair === 'bun') { HB.ball(F, at(0, 0.11, -0.08), [0.065, 0.06, 0.06], FUR({ len: 0.015 }), tg, 0.005); HB.lathe(F, at(0, 0.075, -0.065), 0.015, 0.045, flat([78, 79]), tg, 0.003); }
+        rigs.push({ i, F, hip: F.P(0, fig(i).hip, 0), neck: F.P(...neckAt(i)) });
+      }
+      if (env.OH_STILL !== '1') {
+        // the head turns on the neck, and rides the torso's turn about the hip (the same turn the body layer gives it)
+        pose = (t, dt, pup) => { for (const r of rigs) { const q = ACTS[r.i].pose(t % 3), Rt = R3(r.F, q.torso), L = K.M.mul(Rt, R3(r.F, q.head)), N = r.neck, Hp = r.hip;
+          const m = K.M.app(Rt, N.map((v, j) => v - Hp[j])); pup.pose['head' + r.i] = { turn: L, pos: m.map((v, j) => v + Hp[j] - N[j]) }; } };
+        for (const r of rigs) parts['head' + r.i] = { pivot: r.neck, slices: 1 };
       }
     }
 
@@ -322,7 +431,7 @@ module.exports = ({ makeBuilder, makeSculpt, KIT: K }) => {
     if (slots) { W.ohSlots = {}; for (const [k, ids] of Object.entries(slots)) W.ohSlots[k] = ids.map(i => PAL[i]); W.ohFirst = heroFirst; }
     if (pose) {
       const P2 = {};
-      for (const [k, v] of Object.entries(parts)) P2[k] = { ...v, ids: tags[k] };
+      for (const [k, v] of Object.entries(parts)) if (tags[k] && tags[k].length) P2[k] = { ...v, ids: tags[k] };
       K.puppet(W, { parts: P2, pose });
     }
     return W;
