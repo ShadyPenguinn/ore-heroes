@@ -10,7 +10,7 @@ const CLI = process.env.INK_STUDIO || path.join(ROOT, '..', 'blacksmith-battles'
 const WHICH = process.argv[2] || 'mine';
 const OUT = path.join(__dirname, 'frames', WHICH);
 // the mine is drawn in the detailed splat look at full size (px 1; the game draws it at half scale); the rest at px 2
-const VIEW = ['--clean', '--px', WHICH === 'mine' ? '1' : '2', '--tone', 'off', '--zoom', '2.6', '--target', '0.7,0.95,0.3', '--w', '960', '--h', '420'];
+const VIEW = ['--clean', '--px', WHICH === 'mine' || WHICH === 'forge' ? '1' : '2', '--tone', 'off', '--zoom', '2.6', '--target', '0.7,0.95,0.3', '--w', '960', '--h', '420'];
 const steps = (a, b, n) => [...Array(n)].map((_, i) => +(a + ((b - a) * i) / n).toFixed(4));
 const SWING = { idle: steps(0, 1, 12), strike: [1.0, 1.04, 1.075, 1.1, 1.12], recover: [1.15, 1.2, 1.26, 1.32, 1.38, 1.44] };
 const jobs = [{ name: 'bg', env: { OH_LAYER: 'none' }, t: 0 }];
